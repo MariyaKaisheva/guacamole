@@ -54,4 +54,9 @@ examples/smooth_lighting/example-smooth_lighting
 examples/clipping/clipping
 examples/oit_demo/example-oit_demo
 examples/animation/example-animation
+examples/depth_cube_map/example-depth_cube_map
+examples/lod_simple/example-lod_simple
+examples/npr/example-npr
+examples/plod_shadows/example-plod_shadows
+examples/plod_simple/example-plod_simple
 install
