@@ -72,12 +72,31 @@ int main(int argc, char** argv) {
   gua::TriMeshLoader loader;
 
   auto transform = graph.add_node<gua::node::TransformNode>("/", "transform");
+
+
+  auto snail_material(gua::MaterialShaderDatabase::instance()
+                      ->lookup("gua_default_material")
+                      ->make_new_material());
+
+   snail_material->set_uniform("Roughness", 0.2f);
+   snail_material->set_uniform("Metalness", 0.0f);
+
+  std::string directory("data/textures/");
+  snail_material->set_uniform("ColorMap", directory + "snail_color.png");
+  
+/*pbrMat->set_uniform("MetalnessMap", directory + "Cerberus_M.tga");
+  pbrMat->set_uniform("RoughnessMap", directory + "Cerberus_R.tga");
+  pbrMat->set_uniform("NormalMap", directory + "Cerberus_N.negated_green.tga");*/
+
+
   auto teapot(loader.create_geometry_from_file(
-      "teapot", "data/objects/teapot.obj",
+      //"teapot", "data/objects/teapot.obj",
+      "teapot", "data/objects/ohluvka.obj",
+      snail_material,
       gua::TriMeshLoader::NORMALIZE_POSITION |
           gua::TriMeshLoader::NORMALIZE_SCALE));
   graph.add_node("/transform", teapot);
-  teapot->set_draw_bounding_box(true);
+  teapot->set_draw_bounding_box(false);
 
 
   auto light2 = graph.add_node<gua::node::LightNode>("/", "light2");
@@ -111,7 +130,7 @@ int main(int argc, char** argv) {
   camera->config.set_screen_path("/screen");
   camera->config.set_scene_graph_name("main_scenegraph");
   camera->config.set_output_window_name("main_window");
-  camera->config.set_enable_stereo(false);
+  camera->config.set_enable_stereo(true);
 
   camera->get_pipeline_description()->get_resolve_pass()->tone_mapping_exposure(
     1.0f);
@@ -126,8 +145,8 @@ int main(int argc, char** argv) {
   window->config.set_size(resolution);
 
   window->config.set_resolution(resolution);
-  window->config.set_stereo_mode(gua::StereoMode::MONO);
-  //window->config.set_stereo_mode(gua::StereoMode::ANAGLYPH_RED_CYAN);
+  //window->config.set_stereo_mode(gua::StereoMode::MONO);
+  window->config.set_stereo_mode(gua::StereoMode::ANAGLYPH_RED_CYAN);
 
   window->on_resize.connect([&](gua::math::vec2ui const& new_size) {
     window->config.set_resolution(new_size);
