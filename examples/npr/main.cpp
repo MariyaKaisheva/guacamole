@@ -29,6 +29,12 @@
 #include <gua/utils/Trackball.hpp>
 
 
+#define USE_ASUS_3D_WORKSTATION 1
+#define USE_LOW_RES_WORKSTATION 0
+
+#define USE_QUAD_BUFFERED 0
+#define USE_ANAGLYPH 0
+#define USE_MONO 1
 
 // forward mouse interaction to trackball
 void mouse_button(gua::utils::Trackball& trackball,
@@ -60,6 +66,37 @@ void mouse_button(gua::utils::Trackball& trackball,
   };
 
   trackball.mouse(button, state, trackball.posx(), trackball.posy());
+}
+
+
+int thickness = 2;
+int max_thickness = 10;
+int min_thickness = 0;
+
+//key-board interacions 
+void key_press(gua::PipelineDescription& pipe, gua::SceneGraph& graph, int key, int scancode, int action, int mods)
+{
+  if (action == 0) return;
+  switch(std::tolower(key)){
+    
+    //line thickness
+    case 'w':
+      //std::cout << "W pressed";
+     if(thickness < max_thickness)
+      {++thickness;}
+      pipe.get_npr_pass()->line_thickness(thickness);
+    break;   
+
+    case 's': 
+    //std::cout << "S pressed";
+      if(thickness > min_thickness)
+       {--thickness;}
+      pipe.get_npr_pass()->line_thickness(thickness);
+    break; 
+      
+   default:
+    break;   
+  }
 }
 
 int main(int argc, char** argv) {
@@ -107,14 +144,29 @@ int main(int argc, char** argv) {
 
   auto screen = graph.add_node<gua::node::ScreenNode>("/", "screen");
   //physical size of output viewport
-  screen->data.set_size(gua::math::vec2(0.445f, 0.247f));
+
+  #if USE_ASUS_3D_WORKSTATION
+  screen->data.set_size(gua::math::vec2(0.598f, 0.336f));
+  #else
+  screen->data.set_size(gua::math::vec2(0.40f, 0.20f));
+  #endif
   screen->translate(0, 0, 1.0);
 
   // add mouse interaction
   gua::utils::Trackball trackball(0.01, 0.002, 0.2);
 
+
+  
   // setup rendering pipeline and window
-  auto resolution = gua::math::vec2ui(1920, 1080);
+
+  gua::math::vec2ui resolution;
+
+  #if USE_ASUS_3D_WORKSTATION
+  resolution = gua::math::vec2ui(2560, 1440);
+  #else
+  resolution = gua::math::vec2ui(1920, 1080);
+  #endif
+
 
 
 
@@ -122,6 +174,10 @@ int main(int argc, char** argv) {
   resolve_pass->background_mode(
       gua::ResolvePassDescription::BackgroundMode::QUAD_TEXTURE);
   resolve_pass->tone_mapping_exposure(1.0f);
+  auto npr_pass = std::make_shared<gua::NPREffectPassDescription>();
+  //npr_pass->line_thickness(thickness);
+
+  
 
 
   auto camera = graph.add_node<gua::node::CameraNode>("/screen", "cam");
@@ -130,23 +186,25 @@ int main(int argc, char** argv) {
   camera->config.set_screen_path("/screen");
   camera->config.set_scene_graph_name("main_scenegraph");
   camera->config.set_output_window_name("main_window");
+  camera->config.set_near_clip(0.001);
+  
+  #if USE_MONO
+  camera->config.set_enable_stereo(false);
+  #else
   camera->config.set_enable_stereo(true);
+  #endif
 
   camera->get_pipeline_description()->get_resolve_pass()->tone_mapping_exposure(
     1.0f);
-  camera->get_pipeline_description()->add_pass(std::make_shared<gua::NPREffectPassDescription>());
+  camera->get_pipeline_description()->add_pass(npr_pass); //std::make_shared<gua::NPREffectPassDescription>());
+  //camera->get_pipeline_description()->get_pass()->line_thickness(thickness); //set line thickness uniform?
   camera->get_pipeline_description()->add_pass(
     std::make_shared<gua::DebugViewPassDescription>());
 
+  #if USE_QUAD_BUFFERED
+  auto window = std::make_shared<gua::Window>();
+  #else
   auto window = std::make_shared<gua::GlfwWindow>();
-  gua::WindowDatabase::instance()->add("main_window", window);
-
-  window->config.set_enable_vsync(false);
-  window->config.set_size(resolution);
-
-  window->config.set_resolution(resolution);
-  //window->config.set_stereo_mode(gua::StereoMode::MONO);
-  window->config.set_stereo_mode(gua::StereoMode::ANAGLYPH_RED_CYAN);
 
   window->on_resize.connect([&](gua::math::vec2ui const& new_size) {
     window->config.set_resolution(new_size);
@@ -155,14 +213,42 @@ int main(int argc, char** argv) {
         gua::math::vec2(0.001 * new_size.x, 0.001 * new_size.y));
   });
 
-
-
-
   window->on_move_cursor.connect(
       [&](gua::math::vec2 const& pos) { trackball.motion(pos.x, pos.y); });
   window->on_button_press.connect(
       std::bind(mouse_button, std::ref(trackball), std::placeholders::_1,
                 std::placeholders::_2, std::placeholders::_3));
+
+  window->on_key_press.connect(std::bind(key_press,
+    std::ref(*(camera->get_pipeline_description())),
+    std::ref(graph),
+    std::placeholders::_1,
+    std::placeholders::_2,
+    std::placeholders::_3,
+    std::placeholders::_4));
+
+  #endif
+
+
+  gua::WindowDatabase::instance()->add("main_window", window);
+
+  window->config.set_enable_vsync(false);
+  window->config.set_size(resolution);
+
+  window->config.set_resolution(resolution);
+
+  #if USE_QUAD_BUFFERED
+  window->config.set_stereo_mode(gua::StereoMode::QUAD_BUFFERED);
+  #endif
+
+  #if USE_ANAGLYPH
+  window->config.set_stereo_mode(gua::StereoMode::ANAGLYPH_RED_CYAN);
+  #endif
+
+  #if USE_MONO
+  window->config.set_stereo_mode(gua::StereoMode::MONO);
+  #endif
+
 
   gua::Renderer renderer;
 
@@ -170,14 +256,24 @@ int main(int argc, char** argv) {
   gua::events::MainLoop loop;
   gua::events::Ticker ticker(loop, 1.0 / 500.0);
 
+
+  unsigned passed_frames = 0;
+
   ticker.on_tick.connect([&]() {
 
     // apply trackball matrix to object
+
+    #if USE_QUAD_BUFFERED
+    gua::math::mat4 modelmatrix =  scm::math::make_rotation(++passed_frames/90.0, 0.0, 1.0, 0.0 );
+    #else
     gua::math::mat4 modelmatrix =
+
         scm::math::make_translation(trackball.shiftx(), trackball.shifty(),
                                     trackball.distance()) *
         gua::math::mat4(trackball.rotation());
+    #endif
 
+        //scm::math::
     transform->set_transform( modelmatrix * scm::math::make_scale(0.2, 0.2, 0.2));
 
     if (window->should_close()) {
@@ -186,6 +282,7 @@ int main(int argc, char** argv) {
       loop.stop();
     } else {
       renderer.queue_draw({&graph});
+
     }
   });
 

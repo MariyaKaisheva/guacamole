@@ -27,6 +27,9 @@
 #include <gua/renderer/Pipeline.hpp>
 #include <gua/utils/Logger.hpp>
 
+//
+#include <gua/renderer/Uniform.hpp>
+
 #include <boost/variant.hpp>
 
 namespace gua {
@@ -42,7 +45,12 @@ namespace gua {
     rendermode_ = RenderMode::Quad;
     name_ = "NPREffectPassDescription";
     depth_stencil_state_ = boost::make_optional(scm::gl::depth_stencil_state_desc(false, false));
+
+    //defaut value
+   // uniforms["line_thickness"] = 0;
   }
+
+  
 
   ////////////////////////////////////////////////////////////////////////////////
   std::shared_ptr<PipelinePassDescription> NPREffectPassDescription::make_copy() const {
@@ -54,6 +62,13 @@ namespace gua {
   {
     PipelinePass pass{*this, ctx, substitution_map};
     return pass;
+  }
+
+  ////////////////////////////////////////////////////////////////////////////////
+  NPREffectPassDescription& NPREffectPassDescription::line_thickness(int value)
+  {
+  uniforms["line_thickness"] = value;
+  return *this;
   }
 
 }

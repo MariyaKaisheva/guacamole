@@ -32,6 +32,7 @@
 #include <gua/renderer/ResolvePass.hpp>
 #include <gua/renderer/DebugViewPass.hpp>
 #include <gua/renderer/SSAAPass.hpp>
+#include <gua/renderer/NPREffectPass.hpp> 
 
 namespace gua {
 
@@ -142,6 +143,12 @@ std::shared_ptr<DebugViewPassDescription> const PipelineDescription::get_debug_v
 ////////////////////////////////////////////////////////////////////////////////
 std::shared_ptr<SSAAPassDescription> const PipelineDescription::get_ssaa_pass() const {
   return get_pass_by_type<SSAAPassDescription>();
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+std::shared_ptr<NPREffectPassDescription> const PipelineDescription::get_npr_pass() const {
+  return get_pass_by_type<NPREffectPassDescription>();
 }
 
 ////////////////////////////////////////////////////////////////////////////////
