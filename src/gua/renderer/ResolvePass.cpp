@@ -38,7 +38,8 @@ ResolvePassDescription::ResolvePassDescription()
   : PipelinePassDescription()
 {
   vertex_shader_ = "shaders/common/fullscreen_quad.vert";
-  fragment_shader_ = "shaders/resolve.frag";
+  //fragment_shader_ = "shaders/resolve.frag";
+  fragment_shader_ = "shaders/npr_resolve.frag"; 
   name_ = "ResolvePass";
   needs_color_buffer_as_input_ = true;
   writes_only_color_buffer_ = true;

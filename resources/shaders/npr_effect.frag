@@ -46,8 +46,11 @@ void main() {
 
   for (int r = -1; r<2; ++r){
     for (int c = -1; c<2; ++c){
-      texcoord.x = (gl_FragCoord.x + r * 1 /*(line_thickness/cam_to_frag_dist)*/ ) / gua_resolution.x;
-      texcoord.y = (gl_FragCoord.y + c * 1/*(line_thickness/cam_to_frag_dist)*/ ) / gua_resolution.y;
+     texcoord.x = (gl_FragCoord.x + r * (line_thickness/cam_to_frag_dist) ) / gua_resolution.x;
+     texcoord.y = (gl_FragCoord.y + c * (line_thickness/cam_to_frag_dist) ) / gua_resolution.y;
+     // texcoord.x = (gl_FragCoord.x + r) / gua_resolution.x;
+      //texcoord.y = (gl_FragCoord.y + c) / gua_resolution.y;
+
       accumulated_color_x += sobel_x[r +1][c +1]*gua_get_normal(texcoord);
       accumulated_color_y += sobel_y[r +1][c +1]*gua_get_normal(texcoord);
 

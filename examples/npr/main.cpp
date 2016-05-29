@@ -33,7 +33,7 @@
 #define USE_LOW_RES_WORKSTATION 0
 
 #define USE_QUAD_BUFFERED 0
-#define USE_ANAGLYPH 0
+#define USE_ANAGLYPH 0 
 #define USE_MONO 1
 
 // forward mouse interaction to trackball
@@ -71,7 +71,7 @@ void mouse_button(gua::utils::Trackball& trackball,
 
 int thickness = 2;
 int max_thickness = 10;
-int min_thickness = 0;
+int min_thickness = 1;
 
 //key-board interacions 
 void key_press(gua::PipelineDescription& pipe, gua::SceneGraph& graph, int key, int scancode, int action, int mods)
@@ -80,19 +80,25 @@ void key_press(gua::PipelineDescription& pipe, gua::SceneGraph& graph, int key, 
   switch(std::tolower(key)){
     
     //line thickness
-    case 'w':
-      //std::cout << "W pressed";
+    case 'w':      
      if(thickness < max_thickness)
       {++thickness;}
       pipe.get_npr_pass()->line_thickness(thickness);
     break;   
 
-    case 's': 
-    //std::cout << "S pressed";
+    case 's':   
       if(thickness > min_thickness)
        {--thickness;}
       pipe.get_npr_pass()->line_thickness(thickness);
     break; 
+
+    //shading mode
+   /* case: 'g'
+      if()
+        {pipe.get_resolve_pass()->gooch_shading(true);}
+      else 
+        {pipe.get_resolve_pass()->gooch_shading(false);}
+    break;*/
       
    default:
     break;   
@@ -170,10 +176,10 @@ int main(int argc, char** argv) {
 
 
 
-  auto resolve_pass = std::make_shared<gua::ResolvePassDescription>();
-  resolve_pass->background_mode(
+  auto npr_resolve_pass = std::make_shared<gua::ResolvePassDescription>();
+  npr_resolve_pass->background_mode(
       gua::ResolvePassDescription::BackgroundMode::QUAD_TEXTURE);
-  resolve_pass->tone_mapping_exposure(1.0f);
+  npr_resolve_pass->tone_mapping_exposure(1.0f);
   auto npr_pass = std::make_shared<gua::NPREffectPassDescription>();
   //npr_pass->line_thickness(thickness);
 
@@ -181,7 +187,7 @@ int main(int argc, char** argv) {
 
 
   auto camera = graph.add_node<gua::node::CameraNode>("/screen", "cam");
-  camera->translate(0, 0, 2.0);
+  camera->translate(0.0, 0, 2.0);
   camera->config.set_resolution(resolution);
   camera->config.set_screen_path("/screen");
   camera->config.set_scene_graph_name("main_scenegraph");
@@ -194,12 +200,12 @@ int main(int argc, char** argv) {
   camera->config.set_enable_stereo(true);
   #endif
 
-  camera->get_pipeline_description()->get_resolve_pass()->tone_mapping_exposure(
-    1.0f);
+ // camera->get_pipeline_description()->get_resolve_pass()->tone_mapping_exposure(
+  //  1.0f);
   camera->get_pipeline_description()->add_pass(npr_pass); //std::make_shared<gua::NPREffectPassDescription>());
   //camera->get_pipeline_description()->get_pass()->line_thickness(thickness); //set line thickness uniform?
-  camera->get_pipeline_description()->add_pass(
-    std::make_shared<gua::DebugViewPassDescription>());
+ // camera->get_pipeline_description()->add_pass(
+   // std::make_shared<gua::DebugViewPassDescription>());
 
   #if USE_QUAD_BUFFERED
   auto window = std::make_shared<gua::Window>();
@@ -261,6 +267,8 @@ int main(int argc, char** argv) {
 
   ticker.on_tick.connect([&]() {
 
+
+
     // apply trackball matrix to object
 
     #if USE_QUAD_BUFFERED
@@ -274,7 +282,7 @@ int main(int argc, char** argv) {
     #endif
 
         //scm::math::
-    transform->set_transform( modelmatrix * scm::math::make_scale(0.2, 0.2, 0.2));
+    transform->set_transform( scm::math::make_translation(0.0, 0.0, 2.0) * modelmatrix *  scm::math::make_rotation(-90.0, 0.0, 1.0, 0.0) * scm::math::make_scale(0.4, 0.4, 0.4));
 
     if (window->should_close()) {
       renderer.stop();
