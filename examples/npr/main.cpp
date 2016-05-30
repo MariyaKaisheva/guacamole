@@ -70,8 +70,8 @@ void mouse_button(gua::utils::Trackball& trackball,
 
 
 int thickness = 2;
-int max_thickness = 10;
-int min_thickness = 1;
+int max_thickness = 5;
+int min_thickness = 0;
 
 //key-board interacions 
 void key_press(gua::PipelineDescription& pipe, gua::SceneGraph& graph, int key, int scancode, int action, int mods)
@@ -93,12 +93,12 @@ void key_press(gua::PipelineDescription& pipe, gua::SceneGraph& graph, int key, 
     break; 
 
     //shading mode
-   /* case: 'g'
-      if()
-        {pipe.get_resolve_pass()->gooch_shading(true);}
+    case 'g':
+      if(pipe.get_resolve_pass()->enable_fog())
+        {pipe.get_resolve_pass()->enable_fog(false);}
       else 
-        {pipe.get_resolve_pass()->gooch_shading(false);}
-    break;*/
+        {pipe.get_resolve_pass()->enable_fog(true);}
+    break;
       
    default:
     break;   
@@ -134,7 +134,7 @@ int main(int argc, char** argv) {
 
   auto teapot(loader.create_geometry_from_file(
       //"teapot", "data/objects/teapot.obj",
-      "teapot", "data/objects/ohluvka.obj",
+     "teapot", "data/objects/ohluvka.obj",
       snail_material,
       gua::TriMeshLoader::NORMALIZE_POSITION |
           gua::TriMeshLoader::NORMALIZE_SCALE));

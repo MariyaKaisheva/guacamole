@@ -233,26 +233,53 @@ void main() {
   vec2 texcoord = vec2(gl_FragCoord.xy) / gua_resolution.xy;
  
   if(depth < 1 ){
-    //gua_out_color = gua_get_normal(texcoord);
-    gua_out_color = gua_get_color(texcoord);
+        //gua_out_color = gua_get_normal(texcoord);
+        gua_out_color = gua_get_color(texcoord);
 
-    ShadingTerms T;
-    gua_prepare_shading(T, gua_get_color(), gua_get_normal(), gua_get_position(), gua_get_pbr()); //out T
+        ShadingTerms T;
+        gua_prepare_shading(T, gua_get_color(), gua_get_normal(), gua_get_position(), gua_get_pbr()); //out T
 
-    vec3 light_direction_vec = get_point_light_direction(gua_get_position());
-    //Gooch shading model http://www.cs.northwestern.edu/~ago820/SIG98/paper/drawing.html
-    float alpha = 0.26;
-    float beta = 0.5;
-    float b = 0.3; //blue component
-    float y = 0.7; //yellow component
-    float temp = (1 + clamp(dot(T.N, light_direction_vec), -1.0, 1.0))/2; //
-    vec3 k_cool = vec3(0, 0, b) + alpha*gua_get_color(texcoord);
-    vec3 k_warm = vec3(y, y, 0) + beta*gua_get_color(texcoord);
-    gua_out_color = temp*k_cool + (1 - temp)*k_warm;
+        vec3 light_direction_vec = get_point_light_direction(gua_get_position());
+
+      
+      //in this case the gua_enable_fog uniform is used as enable_gooch_shading  
+      if (gua_enable_fog){
+              //Gooch shading model http://www.cs.northwestern.edu/~ago820/SIG98/paper/drawing.html
+              float alpha = 0.4;
+              float beta = 0.5;
+              float b = 0.3; //blue component
+              float y = 0.7; //yellow component
+              float temp = (1 + clamp(dot(T.N, light_direction_vec), -1.0, 1.0))/2; //  clam not needed here
+              vec3 k_cool = vec3(0, 0, b) + alpha*gua_get_color(texcoord);
+              vec3 k_warm = vec3(y, y, 0) + beta*gua_get_color(texcoord);
+              gua_out_color = temp*k_cool + (1 - temp)*k_warm; 
+      }
+
+      else{
+        //Cel shading - realtime-rendering 2dn edition
+        if (clamp(dot(T.V, T.N), 0.0, 1.0) > 0.25){
+              
+              float light_test = clamp(dot(T.N, light_direction_vec), -1.0, 1.0);
+              if(light_test < 0){
+                gua_out_color = T.diffuse;
+              }
+              else if (light_test < 0.85){
+                gua_out_color = T.diffuse*3;
+              }
+              else {
+                gua_out_color = T.diffuse*6;
+              }
+        } 
+        else{
+          gua_out_color = vec3(0.1, 0.1, 0.15); //outline color
+        }
+
+      }     
+        
 
   }
   else {
-    gua_out_color = vec3(0.4, 0.4, 0.4);
+    gua_out_color = vec3(0.6, 0.6, 0.6);
   }
 }
 

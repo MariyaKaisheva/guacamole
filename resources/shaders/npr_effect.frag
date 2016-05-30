@@ -51,7 +51,7 @@ void main() {
      // texcoord.x = (gl_FragCoord.x + r) / gua_resolution.x;
       //texcoord.y = (gl_FragCoord.y + c) / gua_resolution.y;
 
-      accumulated_color_x += sobel_x[r +1][c +1]*gua_get_normal(texcoord);
+      accumulated_color_x += sobel_x[r +1][c +1]*gua_get_normal(texcoord); //for toon shading also color_map look up gives good results
       accumulated_color_y += sobel_y[r +1][c +1]*gua_get_normal(texcoord);
 
     }
@@ -66,7 +66,7 @@ void main() {
                          sqrt(pow(accumulated_color_x.z, 2) + pow(accumulated_color_y.z, 2)));
 
   
-  if( dot(edge_color, vec3(1) ) < 4.8){
+  if( dot(edge_color, vec3(1) ) < 2.8){
     gua_out_color = gua_get_color(texcoord);
   }
   else { gua_out_color = vec3(0.0, 0.0, 0.0);}
