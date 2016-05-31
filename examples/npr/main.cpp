@@ -204,8 +204,8 @@ int main(int argc, char** argv) {
   //  1.0f);
   camera->get_pipeline_description()->add_pass(npr_pass); //std::make_shared<gua::NPREffectPassDescription>());
   //camera->get_pipeline_description()->get_pass()->line_thickness(thickness); //set line thickness uniform?
- // camera->get_pipeline_description()->add_pass(
-   // std::make_shared<gua::DebugViewPassDescription>());
+  camera->get_pipeline_description()->add_pass(
+   std::make_shared<gua::DebugViewPassDescription>());
 
   #if USE_QUAD_BUFFERED
   auto window = std::make_shared<gua::Window>();

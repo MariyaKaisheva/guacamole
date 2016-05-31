@@ -32,6 +32,10 @@ void main() {
   mat3 sobel_y = mat3 (-1.0, -2.0, -1.0,
                         0.0, 0.0, 0.0,
                         1.0, 2.0, 1.0);
+            
+  mat3 dither_mat = mat3(0.1, 0.8, 0.4,
+                         0.7, 0.6, 0.3,
+                         0.5, 0.2, 0.9);             
 
 
   //vec3 color = vec3(gua_get_depth(texcoord));
@@ -65,20 +69,34 @@ void main() {
                          sqrt(pow(accumulated_color_x.y, 2) + pow(accumulated_color_y.y, 2)), 
                          sqrt(pow(accumulated_color_x.z, 2) + pow(accumulated_color_y.z, 2)));
 
+  float depth = gua_get_depth();
+  if(depth < 1){
+
+    if( dot(edge_color, vec3(1) ) < 2.8){
+       //halftoning
+        float gray = (gua_get_color(texcoord).r + gua_get_color(texcoord).g +gua_get_color(texcoord).b)/3;
+        vec3 gray_color = vec3(gray, gray, gray);
+        int x = int(mod(gl_FragCoord.x/2, 3));
+        int y = int(mod(gl_FragCoord.y/2, 3)); 
+        gray_color = gray_color + gray_color*(dither_mat[x][y]);
   
-  if( dot(edge_color, vec3(1) ) < 2.8){
-    gua_out_color = gua_get_color(texcoord);
-  }
-  else { gua_out_color = vec3(0.0, 0.0, 0.0);}
-     //discard;
+       if (gray_color.x < dither_mat[x][y])
+        { 
+         //gray_color = vec3(1.0, 1.0, 1.0);
+         //gray_color = (floor(gray_color.xyz*2))/2.0;
+         // gray_color = vec3(1.0, 1.0, 1.0);
+          gray_color = (floor(gua_get_color(texcoord).xyz*2))/2.0;
+        }
+        else{
+          //gray_color = vec3(0.0, 0.0, 0.0);
+         // gray_color = (ceil(gray_color.xyz*2))/2.0;
+          gray_color = (ceil(gua_get_color(texcoord).xyz*2))/2.0;
+        }
 
-  // output normal
-  //gua_out_color = gua_get_normal(texcoord);
-
-  // output position
-  //gua_out_color = gua_get_position(texcoord);
-
- 
-
+        gua_out_color = gray_color;
+    }
+   else{gua_out_color = vec3(0.05, 0.0, 0.8);}  
+  }  
+else { gua_out_color = vec3(0.25, 0.2, 0.3);}
+    
 }
-
