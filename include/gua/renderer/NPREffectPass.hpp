@@ -37,6 +37,7 @@ class GUA_DLL NPREffectPassDescription : public PipelinePassDescription {
 
   std::shared_ptr<PipelinePassDescription> make_copy() const override;
   NPREffectPassDescription& line_thickness(int value);
+  NPREffectPassDescription& halftoning(bool value);
 
   friend class Pipeline;
 

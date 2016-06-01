@@ -7,6 +7,7 @@ in vec2 gua_quad_coords;
 @include "common/gua_gbuffer_input.glsl"
 
 uniform int line_thickness;
+uniform bool halftoning;
 
 // output
 layout(location=0) out vec3 gua_out_color;
@@ -69,11 +70,14 @@ void main() {
                          sqrt(pow(accumulated_color_x.y, 2) + pow(accumulated_color_y.y, 2)), 
                          sqrt(pow(accumulated_color_x.z, 2) + pow(accumulated_color_y.z, 2)));
 
-  float depth = gua_get_depth();
-  if(depth < 1){
+  float depth = gua_get_depth(); 
+  if(depth < 1)//check for background
+  { 
 
     if( dot(edge_color, vec3(1) ) < 2.8){
-       //halftoning
+
+      if(halftoning){
+
         float gray = (gua_get_color(texcoord).r + gua_get_color(texcoord).g +gua_get_color(texcoord).b)/3;
         vec3 gray_color = vec3(gray, gray, gray);
         int x = int(mod(gl_FragCoord.x/2, 3));
@@ -94,6 +98,11 @@ void main() {
         }
 
         gua_out_color = gray_color;
+      }
+     else{
+      gua_out_color = gua_get_color(texcoord); //no halftoning applied
+     } 
+       
     }
    else{gua_out_color = vec3(0.05, 0.0, 0.8);}  
   }  

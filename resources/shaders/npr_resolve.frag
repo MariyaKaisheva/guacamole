@@ -193,7 +193,7 @@ vec3 gua_apply_background_color() {
 }*/
 
 ///////////////////////////////////////////////////////////////////////////////
-vec3 gua_get_background_color() {
+/*vec3 gua_get_background_color() {
   switch (gua_background_mode) {
     case 0: // color
       return sRGB_to_linear(gua_apply_background_color());
@@ -204,7 +204,7 @@ vec3 gua_get_background_color() {
   }
   // cubemap
   return sRGB_to_linear(gua_apply_cubemap_texture());
-}
+}*/
 
 ///////////////////////////////////////////////////////////////////////////////
 /*float get_vignette(float coverage, float softness, float intensity) {

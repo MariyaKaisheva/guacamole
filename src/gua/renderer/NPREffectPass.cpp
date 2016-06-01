@@ -71,4 +71,11 @@ namespace gua {
   return *this;
   }
 
+  ////////////////////////////////////////////////////////////////////////////////
+  NPREffectPassDescription& NPREffectPassDescription::halftoning(bool value)
+  {
+  uniforms["halftoning"] = value;
+  return *this;
+  }
+
 }

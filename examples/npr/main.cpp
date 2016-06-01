@@ -25,16 +25,27 @@
 #include <gua/renderer/TriMeshLoader.hpp>
 #include <gua/renderer/ToneMappingPass.hpp>
 #include <gua/renderer/DebugViewPass.hpp>
+#include <gua/renderer/ToonResolvePass.hpp> 
 #include <gua/renderer/NPREffectPass.hpp>
 #include <gua/utils/Trackball.hpp>
+
+#include <gua/renderer/TriMeshPass.hpp>
+#include <gua/renderer/LightVisibilityPass.hpp>
+#include <gua/renderer/BBoxPass.hpp>
+#include <gua/renderer/TexturedQuadPass.hpp>
+#include <gua/renderer/TexturedScreenSpaceQuadPass.hpp>
+//#include <gua/renderer/SkeletalAnimationPass.hpp>
 
 
 #define USE_ASUS_3D_WORKSTATION 1
 #define USE_LOW_RES_WORKSTATION 0
 
 #define USE_QUAD_BUFFERED 0
-#define USE_ANAGLYPH 0 
-#define USE_MONO 1
+#define USE_ANAGLYPH 1 
+#define USE_MONO 0
+
+
+#define USE_TOON_RESOLVE_PASS 1
 
 // forward mouse interaction to trackball
 void mouse_button(gua::utils::Trackball& trackball,
@@ -68,7 +79,8 @@ void mouse_button(gua::utils::Trackball& trackball,
   trackball.mouse(button, state, trackball.posx(), trackball.posy());
 }
 
-
+bool use_toon_resolve_pass = false; 
+bool do_halftoning_effect = false; 
 int thickness = 2;
 int max_thickness = 5;
 int min_thickness = 0;
@@ -94,12 +106,40 @@ void key_press(gua::PipelineDescription& pipe, gua::SceneGraph& graph, int key, 
 
     //shading mode
     case 'g':
-      if(pipe.get_resolve_pass()->enable_fog())
-        {pipe.get_resolve_pass()->enable_fog(false);}
+
+    //#if USE_TOON_RESOLVE_PASS
+    if(!use_toon_resolve_pass){
+      if(pipe.get_toon_resolve_pass()->enable_fog()) //temp substitute
+        {pipe.get_toon_resolve_pass()->enable_fog(false);}
       else 
-        {pipe.get_resolve_pass()->enable_fog(true);}
-    break;
+        {pipe.get_toon_resolve_pass()->enable_fog(true);}
+    }
       
+    //#endif
+
+    break;
+
+    //toogle resolve pass ??
+    case 'r':
+      use_toon_resolve_pass = !use_toon_resolve_pass; 
+      pipe.clear();
+      pipe.add_pass(std::make_shared<gua::TriMeshPassDescription>());
+      //pipe->add_pass(std::make_shared<gua::SkeletalAnimationPassDescription>()); //ß
+      pipe.add_pass(std::make_shared<gua::LightVisibilityPassDescription>());
+      if(use_toon_resolve_pass){
+        pipe.add_pass(std::make_shared<gua::ResolvePassDescription>());  
+      }
+      else{pipe.add_pass(std::make_shared<gua::ToonResolvePassDescription>());}
+      pipe.add_pass(std::make_shared<gua::NPREffectPassDescription>());
+      pipe.add_pass(std::make_shared<gua::DebugViewPassDescription>());      
+    break;  
+    
+    //halftoning mode - screenspace pass
+    case 'h':
+      do_halftoning_effect = !do_halftoning_effect;
+      pipe.get_npr_pass()->halftoning(do_halftoning_effect);      
+    break;
+
    default:
     break;   
   }
@@ -112,11 +152,12 @@ int main(int argc, char** argv) {
   // setup scene
   gua::SceneGraph graph("main_scenegraph");
 
+ // gua::SkeletalAnimationLoader loader;//ß
   gua::TriMeshLoader loader;
 
   auto transform = graph.add_node<gua::node::TransformNode>("/", "transform");
 
-
+  #if USE_TOON_RESOLVE_PASS
   auto snail_material(gua::MaterialShaderDatabase::instance()
                       ->lookup("gua_default_material")
                       ->make_new_material());
@@ -126,20 +167,27 @@ int main(int argc, char** argv) {
 
   std::string directory("data/textures/");
   snail_material->set_uniform("ColorMap", directory + "snail_color.png");
+  #endif
   
 /*pbrMat->set_uniform("MetalnessMap", directory + "Cerberus_M.tga");
   pbrMat->set_uniform("RoughnessMap", directory + "Cerberus_R.tga");
   pbrMat->set_uniform("NormalMap", directory + "Cerberus_N.negated_green.tga");*/
 
-
+  #if USE_TOON_RESOLVE_PASS
   auto teapot(loader.create_geometry_from_file(
-      //"teapot", "data/objects/teapot.obj",
+     // "teapot", "data/objects/teapot.obj",
      "teapot", "data/objects/ohluvka.obj",
       snail_material,
       gua::TriMeshLoader::NORMALIZE_POSITION |
           gua::TriMeshLoader::NORMALIZE_SCALE));
+  #else
+  auto teapot(loader.create_geometry_from_file(
+      "teapot", "data/objects/teapot.obj",
+      gua::TriMeshLoader::NORMALIZE_POSITION |
+          gua::TriMeshLoader::NORMALIZE_SCALE));
+  #endif
   graph.add_node("/transform", teapot);
-  teapot->set_draw_bounding_box(false);
+  teapot->set_draw_bounding_box(true);
 
 
   auto light2 = graph.add_node<gua::node::LightNode>("/", "light2");
@@ -175,10 +223,13 @@ int main(int argc, char** argv) {
 
 
 
-
-  auto npr_resolve_pass = std::make_shared<gua::ResolvePassDescription>();
+  #if USE_TOON_RESOLVE_PASS
+    auto npr_resolve_pass = std::make_shared<gua::ToonResolvePassDescription>();
+  #else
+    auto npr_resolve_pass = std::make_shared<gua::ResolvePassDescription>();
   npr_resolve_pass->background_mode(
       gua::ResolvePassDescription::BackgroundMode::QUAD_TEXTURE);
+  #endif
   npr_resolve_pass->tone_mapping_exposure(1.0f);
   auto npr_pass = std::make_shared<gua::NPREffectPassDescription>();
   //npr_pass->line_thickness(thickness);
@@ -202,10 +253,23 @@ int main(int argc, char** argv) {
 
  // camera->get_pipeline_description()->get_resolve_pass()->tone_mapping_exposure(
   //  1.0f);
-  camera->get_pipeline_description()->add_pass(npr_pass); //std::make_shared<gua::NPREffectPassDescription>());
+
+
+  auto pipe = std::make_shared<gua::PipelineDescription>();
+  //auto pipe(std::make_shared<PipelineDescription>());
+
+  pipe->add_pass(std::make_shared<gua::TriMeshPassDescription>());
+  //camera->get_pipeline_description()->add_pass(std::make_shared<TexturedQuadPassDescription>());
+
+  pipe->add_pass(std::make_shared<gua::LightVisibilityPassDescription>());
+
+  pipe->add_pass(npr_resolve_pass);
+  pipe->add_pass(npr_pass); //std::make_shared<gua::NPREffectPassDescription>());
   //camera->get_pipeline_description()->get_pass()->line_thickness(thickness); //set line thickness uniform?
-  camera->get_pipeline_description()->add_pass(
+  pipe->add_pass(
    std::make_shared<gua::DebugViewPassDescription>());
+
+  camera->set_pipeline_description(pipe);
 
   #if USE_QUAD_BUFFERED
   auto window = std::make_shared<gua::Window>();
@@ -290,8 +354,8 @@ int main(int argc, char** argv) {
       loop.stop();
     } else {
       renderer.queue_draw({&graph});
-
     }
+
   });
 
   loop.start();
