@@ -19,8 +19,8 @@
  *                                                                            *
  ******************************************************************************/
 
-#ifndef GUA_NPREFFECT_PASS_HPP
-#define GUA_NPREFFECT_PASS_HPP
+#ifndef GUA_NPR_OUTLINE_PASS_HPP
+#define GUA_NPR_OUTLINE_PASS_HPP
 
 #include <gua/renderer/PipelinePass.hpp>
 
@@ -30,16 +30,15 @@ namespace gua {
 
 class Pipeline;
 
-class GUA_DLL NPREffectPassDescription : public PipelinePassDescription {
+class GUA_DLL NprOutlinePassDescription : public PipelinePassDescription {
  public:
 
-  NPREffectPassDescription();
+  NprOutlinePassDescription();
 
   std::shared_ptr<PipelinePassDescription> make_copy() const override;
-  NPREffectPassDescription& line_thickness(int value);
-  NPREffectPassDescription& halftoning(bool value);
-  NPREffectPassDescription& sigma_d(float value);
-  //NPREffectPassDescription& sigma_r(float value);
+  NprOutlinePassDescription& line_thickness(int value);
+  NprOutlinePassDescription& halftoning(bool value);
+
 
   friend class Pipeline;
 
@@ -51,4 +50,4 @@ class GUA_DLL NPREffectPassDescription : public PipelinePassDescription {
 
 }
 
-#endif  // GUA_NPREFFECT_PASS_HPP
+#endif  // GUA_NPR_OUTLINE_PASS_HPP

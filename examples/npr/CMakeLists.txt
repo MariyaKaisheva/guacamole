@@ -9,15 +9,24 @@ list(APPEND LIB_PATHS ${CMAKE_SOURCE_DIR}/lib)
 
 link_directories(${LIB_PATHS})
 
-include_directories( ${INCLUDE_PATHS} ${PROJECT_SOURCE_DIR}/include)
+include_directories( ${INCLUDE_PATHS} 
+                     ${PROJECT_SOURCE_DIR}/include 
+                     ${GUACAMOLE_SKELANIM_INCLUDE_DIR}
+                     ${GUACAMOLE_LOD_INCLUDE_DIR}) 
 
 add_executable( ${_EXE_NAME} main.cpp)
 
-add_dependencies(${_EXE_NAME} guacamole)
+add_dependencies(${_EXE_NAME} 
+                 guacamole 
+                 guacamole-skelanim
+                 guacamole guacamole-lod)
 
 list(APPEND LIBS guacamole)
 
-target_link_libraries( ${_EXE_NAME} guacamole )
+target_link_libraries( ${_EXE_NAME} 
+                       guacamole 
+                       guacamole-skelanim
+                       guacamole guacamole-lod)
 
 # copy runtime libraries as a post-build process
 IF (MSVC)

@@ -24,7 +24,7 @@ in vec2 gua_quad_coords;
 uint bitset[((@max_lights_num@ - 1) >> 5) + 1];
 
 ///////////////////////////////////////////////////////////////////////////////
-vec2
+/*vec2
 longitude_latitude(in vec3 normal)
 {
   const float invpi = 1.0 / 3.14159265359;
@@ -45,75 +45,8 @@ vec3 EnvBRDFApprox( vec3 SpecularColor, float Roughness, float NoV )
   float a004 = min( r.x * r.x, exp2( -9.28 * NoV ) ) * r.x + r.y;
   vec2 AB = vec2( -1.04, 1.04 ) * a004 + r.zw;
   return SpecularColor * AB.x + AB.y;
-}
-
-///////////////////////////////////////////////////////////////////////////////
-/*vec3 environment_lighting (in ShadingTerms T)
-{
-  vec3 env_color = vec3(0);
-  vec3 brdf_spec = EnvBRDFApprox(T.cspec, T.roughness, dot(T.N, T.V));
-  vec3 col1 = vec3(0);
-  vec3 col2 = vec3(0);
-
-  switch (gua_environment_lighting_mode) {
-    case 0 : // spheremap
-      vec2 texcoord = longitude_latitude(T.N);
-      col1 = brdf_spec * texture(sampler2D(gua_environment_lighting_texture), texcoord).rgb;
-      col2 = brdf_spec * texture(sampler2D(gua_alternative_environment_lighting_texture), texcoord).rgb;
-      env_color = mix(col1, col2, gua_environment_lighting_texture_blend_factor);
-      break;
-    case 1 : // cubemap
-      col1 = brdf_spec * texture(samplerCube(gua_environment_lighting_texture), T.N).rgb;
-      col2 = brdf_spec * texture(samplerCube(gua_alternative_environment_lighting_texture), T.N).rgb;
-      env_color = mix(col1, col2, gua_environment_lighting_texture_blend_factor);
-      break;
-    case 2 : // single color
-      // http://marmosetco.tumblr.com/post/81245981087
-      float gua_horizon_fade = 1.3;
-      vec3 R = reflect(-T.V, T.N);
-      float horizon = saturate( 1.0 + gua_horizon_fade * dot(R, T.N));
-      horizon *= horizon;
-      vec3 brdf_diff = T.diffuse;
-      env_color = (Pi * brdf_diff + (horizon * brdf_spec)) * gua_horizon_fade * gua_environment_lighting_color;
-      break;
-  };
-
-  return env_color;
 }*/
 
-///////////////////////////////////////////////////////////////////////////////
-/*vec3 shade_for_all_lights(vec3 color, vec3 normal, vec3 position, vec3 pbr, uint flags, bool ssao_enable) {
-
-  float emit = pbr.r;
-
-  // pass-through check
-  if (emit == 1.0) {
-    return color;
-  }
-
-  ShadingTerms T;
-  gua_prepare_shading(T, color, normal, position, pbr);
-
-  vec3 frag_color = vec3(0);
-  for (int i = 0; i < gua_lights_num; ++i) {
-      float screen_space_shadow = compute_screen_space_shadow (i, position);
-
-      // is it either a visible spot/point light or a sun light ?
-      if ( ((bitset[i>>5] & (1u << (i%32))) != 0)
-         || i >= gua_lights_num - gua_sun_lights_num )
-      {
-        frag_color += (1.0 - screen_space_shadow) * gua_shade(i, T);
-      }
-  }
-
-  float ambient_occlusion = 0.0;
-  if (ssao_enable) {
-    ambient_occlusion = compute_ssao();
-  }
-  frag_color += (1.0 - ambient_occlusion) * environment_lighting(T);
-
-  return mix(frag_color, color, emit);
-}*/
 
 ///////////////////////////////////////////////////////////////////////////////
 #if @enable_abuffer@
@@ -150,7 +83,7 @@ float gua_my_atan2(float a, float b) {
 }
 
 ///////////////////////////////////////////////////////////////////////////////
-vec3 gua_apply_background_texture() {
+/*vec3 gua_apply_background_texture() {
   vec3 col1 = texture(sampler2D(gua_background_texture), gua_quad_coords).xyz;
   vec3 col2 = texture(sampler2D(gua_alternative_background_texture), gua_quad_coords).xyz;
   return mix(col1, col2, gua_background_texture_blend_factor);
@@ -183,37 +116,7 @@ vec3 gua_apply_skymap_texture() {
 ///////////////////////////////////////////////////////////////////////////////
 vec3 gua_apply_background_color() {
   return gua_background_color;
-}
-
-///////////////////////////////////////////////////////////////////////////////
-/*vec3 gua_apply_fog(vec3 color, vec3 fog_color) {
-  float dist       = length(gua_camera_position - gua_get_position());
-  float fog_factor = clamp((dist - gua_fog_start)/(gua_fog_end - gua_fog_start), 0.0, 1.0);
-  return mix(color, fog_color, fog_factor);
 }*/
-
-///////////////////////////////////////////////////////////////////////////////
-/*vec3 gua_get_background_color() {
-  switch (gua_background_mode) {
-    case 0: // color
-      return sRGB_to_linear(gua_apply_background_color());
-    case 1: // skymap texture
-      return sRGB_to_linear(gua_apply_skymap_texture());
-    case 2: // quad texture
-      return sRGB_to_linear(gua_apply_background_texture());
-  }
-  // cubemap
-  return sRGB_to_linear(gua_apply_cubemap_texture());
-}*/
-
-///////////////////////////////////////////////////////////////////////////////
-/*float get_vignette(float coverage, float softness, float intensity) {
-  // inigo quilez's great vigneting effect!
-  float a = -coverage/softness;
-  float b = 1.0/softness;
-  vec2 q = gua_get_quad_coords();
-  return clamp(a + b*pow( 16.0*q.x*q.y*(1.0-q.x)*(1.0-q.y), 0.1 ), 0, 1) * intensity + (1-intensity);
-} */
 
 ///////////////////////////////////////////////////////////////////////////////
 vec3 get_point_light_direction(vec3 position){
@@ -231,6 +134,7 @@ void main() {
   float depth = gua_get_depth();
   ivec2 frag_pos = ivec2(gl_FragCoord.xy);
   vec2 texcoord = vec2(gl_FragCoord.xy) / gua_resolution.xy;
+  int factor = 10;
  
   if(depth < 1 ){
         //gua_out_color = gua_get_normal(texcoord);
@@ -242,8 +146,8 @@ void main() {
         vec3 light_direction_vec = get_point_light_direction(gua_get_position());
 
       
-      //in this case the gua_enable_fog uniform is used as enable_gooch_shading  
-      if (gua_enable_fog){
+      
+      if (gua_enable_gooch_shading){
               //Gooch shading model http://www.cs.northwestern.edu/~ago820/SIG98/paper/drawing.html
               float alpha = 0.4;
               float beta = 0.5;
@@ -252,7 +156,8 @@ void main() {
               float temp = (1 + clamp(dot(T.N, light_direction_vec), -1.0, 1.0))/2; //  clam not needed here
               vec3 k_cool = vec3(0, 0, b) + alpha*gua_get_color(texcoord);
               vec3 k_warm = vec3(y, y, 0) + beta*gua_get_color(texcoord);
-              gua_out_color = temp*k_cool + (1 - temp)*k_warm; 
+              gua_out_color = (1 - temp)*k_cool + temp*k_warm;  //swap  'temp' and '1-temp' terms to inverse light source impression
+                                                                //fromula difference: http://developer.amd.com/wordpress/media/2012/10/ShaderX_NPR.pdf
       }
 
       else{
@@ -264,14 +169,16 @@ void main() {
                 gua_out_color = T.diffuse;
               }
               else if (light_test < 0.85){
-                gua_out_color = T.diffuse*3;
+                gua_out_color = T.diffuse*factor;
               }
               else {
-                gua_out_color = T.diffuse*6;
+                gua_out_color =  T.diffuse*factor*2;
               }
         } 
         else{
-          gua_out_color = vec3(0.1, 0.1, 0.15); //outline color
+           //outline color
+          //gua_out_color = vec3(0.3, 0.3, 0.3);
+          gua_out_color = T.diffuse;
         }
 
       }     

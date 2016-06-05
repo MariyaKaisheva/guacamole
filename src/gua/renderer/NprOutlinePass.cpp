@@ -20,7 +20,7 @@
  ******************************************************************************/
 
 // class header
-#include <gua/renderer/NPREffectPass.hpp>
+#include <gua/renderer/NprOutlinePass.hpp>
 
 #include <gua/renderer/GBuffer.hpp>
 #include <gua/renderer/ABuffer.hpp>
@@ -35,54 +35,47 @@
 namespace gua {
 
   ////////////////////////////////////////////////////////////////////////////////
-  NPREffectPassDescription::NPREffectPassDescription()
+  NprOutlinePassDescription::NprOutlinePassDescription()
     : PipelinePassDescription()
   {
     vertex_shader_ = "shaders/common/fullscreen_quad.vert";
-    //fragment_shader_ = "shaders/npr_effect.frag";
-    fragment_shader_ = "shaders/npr_bilateral.frag";
+    fragment_shader_ = "shaders/npr_effect.frag";
+    //fragment_shader_ = "shaders/npr_bilateral.frag";
     needs_color_buffer_as_input_ = true;
     writes_only_color_buffer_ = true;
     rendermode_ = RenderMode::Quad;
-    name_ = "NPREffectPassDescription";
+    name_ = "NprOutlinePassDescription";
     depth_stencil_state_ = boost::make_optional(scm::gl::depth_stencil_state_desc(false, false));
 
     //defaut value
-   // uniforms["line_thickness"] = 0;
+    uniforms["line_thickness"] = 1;
   }
 
   
 
   ////////////////////////////////////////////////////////////////////////////////
-  std::shared_ptr<PipelinePassDescription> NPREffectPassDescription::make_copy() const {
-    return std::make_shared<NPREffectPassDescription>(*this);
+  std::shared_ptr<PipelinePassDescription> NprOutlinePassDescription::make_copy() const {
+    return std::make_shared<NprOutlinePassDescription>(*this);
   }
 
   ////////////////////////////////////////////////////////////////////////////////
-  PipelinePass NPREffectPassDescription::make_pass(RenderContext const& ctx, SubstitutionMap& substitution_map)
+  PipelinePass NprOutlinePassDescription::make_pass(RenderContext const& ctx, SubstitutionMap& substitution_map)
   {
     PipelinePass pass{*this, ctx, substitution_map};
     return pass;
   }
 
   ////////////////////////////////////////////////////////////////////////////////
-  NPREffectPassDescription& NPREffectPassDescription::line_thickness(int value)
+  NprOutlinePassDescription& NprOutlinePassDescription::line_thickness(int value)
   {
   uniforms["line_thickness"] = value;
   return *this;
   }
 
   ////////////////////////////////////////////////////////////////////////////////
-  NPREffectPassDescription& NPREffectPassDescription::halftoning(bool value)
+  NprOutlinePassDescription& NprOutlinePassDescription::halftoning(bool value)
   {
   uniforms["halftoning"] = value;
-  return *this;
-  }
-
-  ////////////////////////////////////////////////////////////////////////////////
-  NPREffectPassDescription& NPREffectPassDescription::sigma_d(float value)
-  {
-  uniforms["sigma_d"] = value;
   return *this;
   }
 
