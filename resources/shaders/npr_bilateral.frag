@@ -33,13 +33,24 @@ float compute_weight(vec2 neighbout_coord, vec2 target_coord){
   float range_distance_term =   pow((abs(get_intensity(target_coord) - get_intensity(neighbout_coord))), 2);
   spatial_distance_term /= 2.0*sigma_d*sigma_d;
   range_distance_term /= 2.0*sigma_r*sigma_r;
-  float weight = exp(-spatial_distance_term - range_distance_term); 
+  float weight = exp(-spatial_distance_term- range_distance_term);
+  return weight;
+}
+
+float compute_gaussian_weight(vec2 neighbout_coord, vec2 target_coord){
+  
+  float spatial_distance_term =  pow((target_coord.x - neighbout_coord.x), 2) + pow((target_coord.y - neighbout_coord.y), 2);
+ // float range_distance_term =   pow((abs(get_intensity(target_coord) - get_intensity(neighbout_coord))), 2);
+  spatial_distance_term /= 2.0*sigma_d*sigma_d;
+ // range_distance_term /= 2.0*sigma_r*sigma_r;
+ 
+  float weight =  (exp(-spatial_distance_term))/(2*3.14*sigma_d*sigma_d);
   return weight;
 }
 
 void main() {
 
-  vec2 texcoord = vec2(gl_FragCoord.xy) / gua_resolution.xy;
+  vec2 texcoord = vec2(gl_FragCoord.xy ) / gua_resolution.xy;
 
   vec3 color = vec3(0.0, 0.0, 0.0);// = gua_get_color(texcoord);
   //vec3 color = gua_get_normal(texcoord);
@@ -59,7 +70,7 @@ void main() {
      float x_coord = (gl_FragCoord.x + r) / gua_resolution.x;
      float y_coord = (gl_FragCoord.y + c) / gua_resolution.y;     
      vec2 current_texcoord =  vec2(x_coord, y_coord); 
-     float current_weight = compute_weight(current_texcoord, texcoord); 
+     float current_weight = compute_gaussian_weight(current_texcoord, texcoord); 
      color += gua_get_color(current_texcoord)*current_weight; 
      sum_weight += current_weight;
     }
@@ -75,5 +86,5 @@ void main() {
   else {
     gua_out_color = vec3(0.2, 0.2, 0.2); //background color 
   } 
-    
+  
 }

@@ -45,11 +45,11 @@ void main() {
     for (int c = -1; c<2; ++c){
      //texcoord.x = (gl_FragCoord.x + r * (line_thickness/cam_to_frag_dist) ) / gua_resolution.x;
      //texcoord.y = (gl_FragCoord.y + c * (line_thickness/cam_to_frag_dist) ) / gua_resolution.y;
-      texcoord.x = (gl_FragCoord.x + r) / gua_resolution.x;
-     texcoord.y = (gl_FragCoord.y + c) / gua_resolution.y;
+      vec2 tmp_texcoord = vec2( (gl_FragCoord.x + r) / gua_resolution.x, 
+                                (gl_FragCoord.y + c) / gua_resolution.y );
 
-      accumulated_color_x += sobel_x[r +1][c +1]*gua_get_normal(texcoord); //for toon shading also color_map look up gives good results
-      accumulated_color_y += sobel_y[r +1][c +1]*gua_get_normal(texcoord);
+      accumulated_color_x += sobel_x[r +1][c +1]*gua_get_normal(tmp_texcoord); //for toon shading also color_map look up gives good results
+      accumulated_color_y += sobel_y[r +1][c +1]*gua_get_normal(tmp_texcoord);
 
     }
   }
@@ -59,7 +59,9 @@ void main() {
                          sqrt(pow(accumulated_color_x.y, 2) + pow(accumulated_color_y.y, 2)), 
                          sqrt(pow(accumulated_color_x.z, 2) + pow(accumulated_color_y.z, 2)));
 
+
   float depth = gua_get_depth(); 
+  
   if(depth < 1)//check for background
   { 
 
@@ -93,5 +95,6 @@ void main() {
    else{gua_out_color = vec3(0.1, 0.1, 0.1);}  //outline color 
   }  
 else { gua_out_color = vec3(0.25, 0.2, 0.3);} //background color 
-    
+
+
 }

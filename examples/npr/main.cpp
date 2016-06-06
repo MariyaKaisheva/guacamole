@@ -50,7 +50,7 @@
 
 #define USE_QUAD_BUFFERED 0
 #define USE_ANAGLYPH 0
-#define USE_MONO 0
+#define USE_MONO 1 
 
 
 #define USE_TOON_RESOLVE_PASS 0
@@ -93,19 +93,16 @@ bool moves_negative_y = false;
 bool moves_positive_x = false;
 bool moves_negative_x = false;
 
-double increment = 0.25;
-double angle_value = 0.0;
-double x_component = 0.0; 
-double y_component = 1.0;
-double z_component = 0.0; 
-
 bool use_toon_resolve_pass = false; 
 bool apply_bilateral_filter = false;
-bool do_halftoning_effect = false; 
+bool apply_halftoning_effect = false; 
+bool create_screenspace_outlines = false; 
 int thickness = 1;
 int max_thickness = 5;
 int min_thickness = 0;
 float sigma_d = 0.1;
+
+int num_screenspace_passes = 3;
 
 void rebuild_pipe(gua::PipelineDescription& pipe) {
   pipe.clear();
@@ -114,30 +111,35 @@ void rebuild_pipe(gua::PipelineDescription& pipe) {
   pipe.add_pass(std::make_shared<gua::SkeletalAnimationPassDescription>()); 
   pipe.add_pass(std::make_shared<gua::LightVisibilityPassDescription>());
 
+
+
   if(!use_toon_resolve_pass){
     pipe.add_pass(std::make_shared<gua::ResolvePassDescription>());  
   }
   else{
     pipe.add_pass(std::make_shared<gua::ToonResolvePassDescription>());
   }
-
-
-  //pipe.add_pass(std::make_shared<gua::NprOutlinePassDescription>());
+   
+  if (create_screenspace_outlines){
+    pipe.add_pass(std::make_shared<gua::NprOutlinePassDescription>());
+  }
 
   if (apply_bilateral_filter){
-    pipe.add_pass(std::make_shared<gua::NPREffectPassDescription>());
-    pipe.add_pass(std::make_shared<gua::NPREffectPassDescription>());
-    pipe.add_pass(std::make_shared<gua::NPREffectPassDescription>());
-    pipe.add_pass(std::make_shared<gua::NPREffectPassDescription>());
-    pipe.add_pass(std::make_shared<gua::NPREffectPassDescription>());
-    pipe.add_pass(std::make_shared<gua::NPREffectPassDescription>());
-    pipe.add_pass(std::make_shared<gua::NPREffectPassDescription>());
-    pipe.add_pass(std::make_shared<gua::NPREffectPassDescription>());
-    //pipe.add_pass(std::make_shared<gua::NprOutlinePassDescription>());
+
+    for(int i = 0; i < num_screenspace_passes; ++i){
+      pipe.add_pass(std::make_shared<gua::NPREffectPassDescription>());
+
+    }
+
   }
  
+  
+  if (create_screenspace_outlines){
+   pipe.add_pass(std::make_shared<gua::NprOutlinePassDescription>());
+  }
+
   //pipe.add_pass(std::make_shared<gua::NprOutlinePassDescription>());
-  pipe.add_pass(std::make_shared<gua::DebugViewPassDescription>());
+  //pipe.add_pass(std::make_shared<gua::DebugViewPassDescription>());
 
 }
 
@@ -168,7 +170,7 @@ void key_press(gua::PipelineDescription& pipe, gua::SceneGraph& graph, int key, 
   if(85 == scancode) {
     moves_positive_x = movement_predicate;
   }
- std::cout<<"angle_value: "<< angle_value << "x:" << x_component << "y:"<<y_component << "z:" <<z_component <<"\n"; 
+ 
   if (action == 0) return;
   switch(std::tolower(key)){
     
@@ -224,46 +226,16 @@ void key_press(gua::PipelineDescription& pipe, gua::SceneGraph& graph, int key, 
     
     //halftoning mode - screenspace pass
     case 'h':
-      do_halftoning_effect = !do_halftoning_effect;
+      apply_halftoning_effect = !apply_halftoning_effect;
       rebuild_pipe(pipe);      
     break;
 
-
-//test movement 
-    case 'q':
-      angle_value += 0.2;
-    break;
-
-    case 'a':
-      angle_value -= 0.2;
-    break;
-//----------------
-    case 'i':
-      x_component += increment;
-    break;
-
-    case 'k':
-      x_component -= increment;
-    break;
-
-//----------------
-    case 'o':
-      y_component += increment;
-    break;
-
+    //toogle outlines - screenspace pass
     case 'l':
-      y_component -= increment;
+      create_screenspace_outlines = !create_screenspace_outlines;
+      rebuild_pipe(pipe);      
     break;
-//----------------
-    case 'u':
-      z_component += increment;
-    break;
-
-    case 'j':
-      z_component -= increment;
-    break;
-///////
-   
+  
    default:
     break;   
   }
@@ -323,7 +295,7 @@ int main(int argc, char** argv) {
           gua::TriMeshLoader::NORMALIZE_SCALE));
 
   //---Sponsa---
-  auto scene_node(trimesh_loader.create_geometry_from_file("sponsa", "/opt/3d_models/Sponza/sponza.obj", gua::TriMeshLoader::NORMALIZE_POSITION /*|  gua::TriMeshLoader::NORMALIZE_SCALE*/ | gua::TriMeshLoader::LOAD_MATERIALS ));
+  auto scene_node(trimesh_loader.create_geometry_from_file("sponsa", "/home/vajo3185/Modified_Sponza/sponza.obj", gua::TriMeshLoader::NORMALIZE_POSITION /*|  gua::TriMeshLoader::NORMALIZE_SCALE*/ | gua::TriMeshLoader::LOAD_MATERIALS ));
 
 
   //---teapod----
@@ -365,21 +337,12 @@ int main(int argc, char** argv) {
                                                    gua::LodLoader::NORMALIZE_POSITION);
 
    snail_node->set_transform(scm::math::make_scale(5.0, 5.0,5.0));
-   //plod_node->scale(200.f);
-   /*plod_node->rotate(90.0, 0.0, 1.0, 1.0); 
-   plod_node->translate(-1330.0f, 0.0f, 0.0f);*/
    plod_node->set_radius_scale(1.3f);
 
 
-
-  //graph.add_node("/transform", teapot);
   graph.add_node("/transform", scene_node);  
   graph.add_node("/transform", plod_node);
   teapot->set_draw_bounding_box(true);
-
-
-
-
 
 
   auto light2 = graph.add_node<gua::node::LightNode>("/", "light2");
@@ -451,17 +414,17 @@ int main(int argc, char** argv) {
 
 
   auto pipe = std::make_shared<gua::PipelineDescription>();
-  pipe->add_pass(std::make_shared<gua::LightVisibilityPassDescription>());
+  rebuild_pipe(*pipe);
+
+ /* pipe->add_pass(std::make_shared<gua::LightVisibilityPassDescription>());
   pipe->add_pass(std::make_shared<gua::TriMeshPassDescription>());
   pipe->add_pass(std::make_shared<gua::PLodPassDescription>());
   
 
   pipe->add_pass(npr_resolve_pass);
   pipe->add_pass(std::make_shared<gua::NprOutlinePassDescription>()); //creates sreenspace outlines
-  pipe->add_pass(npr_pass); //std::make_shared<gua::NPREffectPassDescription>());
- // pipe->add_pass(npr_pass);
-  //pipe->add_pass(npr_pass);
-  pipe->add_pass(std::make_shared<gua::DebugViewPassDescription>());
+  //pipe->add_pass(npr_pass); //std::make_shared<gua::NPREffectPassDescription>());
+  //pipe->add_pass(std::make_shared<gua::DebugViewPassDescription>()); */
 
   camera->set_pipeline_description(pipe);
 
@@ -562,7 +525,6 @@ int main(int argc, char** argv) {
      gua::math::mat4 scale_mat = scm::math::make_scale(200.0, 200.0, 200.0);
      gua::math::mat4 rot_mat_x = scm::math::make_rotation(-90.0, 1.0, 0.0, 0.0);
      gua::math::mat4 rot_mat_y = scm::math::make_rotation(106.8, 0.0, 1.0, 0.0);
-     //gua::math::mat4 rot_mat2= scm::math::make_rotation(angle_value, x_component, y_component, z_component);
      gua::math::mat4 trans_mat = scm::math::make_translation(-1330.0, -15.0, -10.0);
      plod_node->set_transform( trans_mat*rot_mat_y*rot_mat_x* scale_mat *  default_node_transform);
 

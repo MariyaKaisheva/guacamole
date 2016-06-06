@@ -39,7 +39,6 @@ namespace gua {
     : PipelinePassDescription()
   {
     vertex_shader_ = "shaders/common/fullscreen_quad.vert";
-    //fragment_shader_ = "shaders/npr_effect.frag";
     fragment_shader_ = "shaders/npr_bilateral.frag";
     needs_color_buffer_as_input_ = true;
     writes_only_color_buffer_ = true;
