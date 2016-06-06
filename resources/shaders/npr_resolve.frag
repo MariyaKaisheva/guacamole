@@ -134,7 +134,7 @@ void main() {
   float depth = gua_get_depth();
   ivec2 frag_pos = ivec2(gl_FragCoord.xy);
   vec2 texcoord = vec2(gl_FragCoord.xy) / gua_resolution.xy;
-  int factor = 10;
+  int factor = 7;
  
   if(depth < 1 ){
         //gua_out_color = gua_get_normal(texcoord);

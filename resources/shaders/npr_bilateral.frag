@@ -68,7 +68,12 @@ void main() {
   color = color/sum_weight;
 
   float depth = gua_get_depth(); 
-  if(depth < 1){ gua_out_color = color;}    
-  else {gua_out_color = vec3(0.25, 0.2, 0.3);} //background color 
+  if(depth < 1){
+     gua_out_color = color;
+     //gua_out_color = color + vec3(1.2, 0.2, 0.2);
+  }    
+  else {
+    gua_out_color = vec3(0.2, 0.2, 0.2); //background color 
+  } 
     
 }
