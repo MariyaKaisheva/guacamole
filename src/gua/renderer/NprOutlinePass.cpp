@@ -39,7 +39,7 @@ namespace gua {
     : PipelinePassDescription()
   {
     vertex_shader_ = "shaders/common/fullscreen_quad.vert";
-    fragment_shader_ = "shaders/npr_effect.frag";
+    fragment_shader_ = "shaders/npr_outline_halftoning.frag";
     needs_color_buffer_as_input_ = true;
     writes_only_color_buffer_ = true;
     rendermode_ = RenderMode::Quad;
@@ -75,6 +75,12 @@ namespace gua {
   NprOutlinePassDescription& NprOutlinePassDescription::halftoning(bool value)
   {
   uniforms["halftoning"] = value;
+  return *this;
+  }
+   ////////////////////////////////////////////////////////////////////////////////
+  NprOutlinePassDescription& NprOutlinePassDescription::apply_outline(bool value)
+  {
+  uniforms["apply_outline"] = value;
   return *this;
   }
 

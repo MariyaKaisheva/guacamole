@@ -38,6 +38,7 @@ class GUA_DLL NprOutlinePassDescription : public PipelinePassDescription {
   std::shared_ptr<PipelinePassDescription> make_copy() const override;
   NprOutlinePassDescription& line_thickness(int value);
   NprOutlinePassDescription& halftoning(bool value);
+  NprOutlinePassDescription& apply_outline(bool value);
 
 
   friend class Pipeline;

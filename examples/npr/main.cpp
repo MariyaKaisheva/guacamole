@@ -49,8 +49,8 @@
 #define USE_LOW_RES_WORKSTATION 0
 
 #define USE_QUAD_BUFFERED 0
-#define USE_ANAGLYPH 0
-#define USE_MONO 1 
+#define USE_ANAGLYPH 1
+#define USE_MONO 0 
 
 
 #define USE_TOON_RESOLVE_PASS 0
@@ -97,12 +97,12 @@ bool use_toon_resolve_pass = false;
 bool apply_bilateral_filter = false;
 bool apply_halftoning_effect = false; 
 bool create_screenspace_outlines = false; 
-int thickness = 1;
-int max_thickness = 5;
-int min_thickness = 0;
-float sigma_d = 0.1;
+int thickness = 0;
+int max_thickness = 15; //confusing name 
+int min_thickness = 0; //confusing name 
+float sigma_d = 0.1; //not used currently
 
-int num_screenspace_passes = 3;
+int num_screenspace_passes = 1;
 
 void rebuild_pipe(gua::PipelineDescription& pipe) {
   pipe.clear();
@@ -120,9 +120,10 @@ void rebuild_pipe(gua::PipelineDescription& pipe) {
     pipe.add_pass(std::make_shared<gua::ToonResolvePassDescription>());
   }
    
-  if (create_screenspace_outlines){
+  /*if (apply_halftoning_effect){
     pipe.add_pass(std::make_shared<gua::NprOutlinePassDescription>());
-  }
+    pipe.get_npr_outline_pass()->halftoning(apply_halftoning_effect);
+  }*/
 
   if (apply_bilateral_filter){
 
@@ -132,10 +133,11 @@ void rebuild_pipe(gua::PipelineDescription& pipe) {
     }
 
   }
- 
   
-  if (create_screenspace_outlines){
+  if (create_screenspace_outlines || apply_halftoning_effect){
    pipe.add_pass(std::make_shared<gua::NprOutlinePassDescription>());
+  pipe.get_npr_outline_pass()->halftoning(apply_halftoning_effect);
+   pipe.get_npr_outline_pass()->apply_outline(create_screenspace_outlines);
   }
 
   //pipe.add_pass(std::make_shared<gua::NprOutlinePassDescription>());
@@ -190,15 +192,24 @@ void key_press(gua::PipelineDescription& pipe, gua::SceneGraph& graph, int key, 
     break; 
 
 
-    /*case 'd':   
-      if(sigma_d < 10.0){
-        sigma_d += 1;
+    case 'd':
+       num_screenspace_passes +=1; 
+        rebuild_pipe(pipe);   
+                      /*if(sigma_d < 10.0){
+                        sigma_d += 1;
+                      }
+                      else{
+                        sigma_d = 0.1;
+                      }
+                       pipe.get_npr_pass()->sigma_d(sigma_d);*/
+    break;
+
+    case 'c':
+      if(num_screenspace_passes > 1){
+        num_screenspace_passes -=1; 
+          rebuild_pipe(pipe);   
       }
-      else{
-        sigma_d = 0.1;
-      }
-       pipe.get_npr_pass()->sigma_d(sigma_d);
-    break; */
+    break;
 
     //shading mode
     case 'g':
@@ -416,16 +427,6 @@ int main(int argc, char** argv) {
   auto pipe = std::make_shared<gua::PipelineDescription>();
   rebuild_pipe(*pipe);
 
- /* pipe->add_pass(std::make_shared<gua::LightVisibilityPassDescription>());
-  pipe->add_pass(std::make_shared<gua::TriMeshPassDescription>());
-  pipe->add_pass(std::make_shared<gua::PLodPassDescription>());
-  
-
-  pipe->add_pass(npr_resolve_pass);
-  pipe->add_pass(std::make_shared<gua::NprOutlinePassDescription>()); //creates sreenspace outlines
-  //pipe->add_pass(npr_pass); //std::make_shared<gua::NPREffectPassDescription>());
-  //pipe->add_pass(std::make_shared<gua::DebugViewPassDescription>()); */
-
   camera->set_pipeline_description(pipe);
 
   #if USE_QUAD_BUFFERED
@@ -514,11 +515,8 @@ int main(int argc, char** argv) {
     #if USE_QUAD_BUFFERED
     gua::math::mat4 modelmatrix =  scm::math::make_rotation(++passed_frames/90.0, 0.0, 1.0, 0.0 );
     #else
-    gua::math::mat4 modelmatrix =
-
-        scm::math::make_translation(trackball.shiftx(), trackball.shifty(),
-                                    trackball.distance()) *
-        gua::math::mat4(trackball.rotation());
+    gua::math::mat4 modelmatrix = scm::math::make_translation(trackball.shiftx(), trackball.shifty(),trackball.distance()) *
+                                  gua::math::mat4(trackball.rotation());
     #endif
 
 
@@ -528,16 +526,13 @@ int main(int argc, char** argv) {
      gua::math::mat4 trans_mat = scm::math::make_translation(-1330.0, -15.0, -10.0);
      plod_node->set_transform( trans_mat*rot_mat_y*rot_mat_x* scale_mat *  default_node_transform);
 
+
+
     transform->set_transform(scm::math::make_translation(0.0, 0.0, 2.0) * modelmatrix *  scm::math::make_rotation(-90.0, 0.0, 1.0, 0.0)* scm::math::make_scale(0.4, 0.4, 0.4));
 
- 
-
-  
-   /*plod_node->scale(200.f);
-   plod_node->rotate(90.0, 0.0, 1.0, 1.0); //-----
-   plod_node->translate(-1330.0f, 0.0f, 0.0f);*/
-
     //gua::math::mat4 plod_node_trasnformations = plod_node->get_trasform();
+    
+    std::cout << "\n\n\nNew frame: " << "\n";
 
     if (window->should_close()) {
       renderer.stop();

@@ -40,6 +40,7 @@ namespace gua {
   class SSAAPassDescription;
   class ToonResolvePassDescription;
   class NPREffectPassDescription;
+  class NprOutlinePassDescription;
 
 class GUA_DLL PipelineDescription {
  public:
@@ -68,6 +69,7 @@ class GUA_DLL PipelineDescription {
   std::shared_ptr<SSAAPassDescription> const get_ssaa_pass() const;
   std::shared_ptr<ToonResolvePassDescription> const get_toon_resolve_pass() const;
   std::shared_ptr<NPREffectPassDescription> const get_npr_pass() const;
+  std::shared_ptr<NprOutlinePassDescription> const get_npr_outline_pass() const;
 
   void set_enable_abuffer(bool value) {
     enable_abuffer_ = value;

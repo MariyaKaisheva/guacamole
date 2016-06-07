@@ -17,7 +17,7 @@ uniform int line_thickness;
 layout(location=0) out vec3 gua_out_color;
 
 //smoothing parameters
-float sigma_d = 0.5;
+float sigma_d = 0.9;
 float sigma_r = 0.5; 
 
 float get_intensity(vec2 texcoord){
@@ -27,20 +27,20 @@ float get_intensity(vec2 texcoord){
 }
 
 
-float compute_weight(vec2 neighbout_coord, vec2 target_coord){
+float compute_weight(vec2 neighbour_coord, vec2 target_coord){
   
-  float spatial_distance_term =  pow((target_coord.x - neighbout_coord.x), 2) + pow((target_coord.y - neighbout_coord.y), 2);
-  float range_distance_term =   pow((abs(get_intensity(target_coord) - get_intensity(neighbout_coord))), 2);
+  float spatial_distance_term =  pow((target_coord.x - neighbour_coord.x), 2) + pow((target_coord.y - neighbour_coord.y), 2);
+  float range_distance_term =   pow((abs(get_intensity(target_coord) - get_intensity(neighbour_coord))), 2);
   spatial_distance_term /= 2.0*sigma_d*sigma_d;
   range_distance_term /= 2.0*sigma_r*sigma_r;
   float weight = exp(-spatial_distance_term- range_distance_term);
   return weight;
 }
 
-float compute_gaussian_weight(vec2 neighbout_coord, vec2 target_coord){
+float compute_gaussian_weight(vec2 neighbour_coord, vec2 target_coord){
   
-  float spatial_distance_term =  pow((target_coord.x - neighbout_coord.x), 2) + pow((target_coord.y - neighbout_coord.y), 2);
- // float range_distance_term =   pow((abs(get_intensity(target_coord) - get_intensity(neighbout_coord))), 2);
+  float spatial_distance_term =  pow((target_coord.x - neighbour_coord.x), 2) + pow((target_coord.y - neighbour_coord.y), 2);
+ // float range_distance_term =   pow((abs(get_intensity(target_coord) - get_intensity(neighbour_coord))), 2);
   spatial_distance_term /= 2.0*sigma_d*sigma_d;
  // range_distance_term /= 2.0*sigma_r*sigma_r;
  
@@ -52,6 +52,7 @@ void main() {
 
   vec2 texcoord = vec2(gl_FragCoord.xy ) / gua_resolution.xy;
 
+
   vec3 color = vec3(0.0, 0.0, 0.0);// = gua_get_color(texcoord);
   //vec3 color = gua_get_normal(texcoord);
   vec3 accumulated_color_x = vec3(0.0, 0.0, 0.0);
@@ -59,18 +60,18 @@ void main() {
 
 
   //float cam_to_frag_dist = distance(gua_camera_position_4.xyz/gua_camera_position_4.w, gua_get_position(texcoord) );
-  int kernel_size = line_thickness; //gives offset to target pixel 
+  int kernel_size = 1 + line_thickness; //gives offset to target pixel 
   float sum_weight = 0.0;
 
+  
 
   for (int r = - kernel_size ; r <= kernel_size; ++r){
     for (int c = - kernel_size; c <= kernel_size; ++c){
 
-
      float x_coord = (gl_FragCoord.x + r) / gua_resolution.x;
      float y_coord = (gl_FragCoord.y + c) / gua_resolution.y;     
      vec2 current_texcoord =  vec2(x_coord, y_coord); 
-     float current_weight = compute_gaussian_weight(current_texcoord, texcoord); 
+     float current_weight = compute_weight(current_texcoord, texcoord); 
      color += gua_get_color(current_texcoord)*current_weight; 
      sum_weight += current_weight;
     }
@@ -87,4 +88,6 @@ void main() {
     gua_out_color = vec3(0.2, 0.2, 0.2); //background color 
   } 
   
+
+  //gua_out_color = gua_get_color(texcoord) + vec3(0.1, 0.0, 0.0);
 }

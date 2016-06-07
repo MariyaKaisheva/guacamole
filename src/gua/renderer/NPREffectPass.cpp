@@ -65,24 +65,23 @@ namespace gua {
   }
 
   ////////////////////////////////////////////////////////////////////////////////
-  NPREffectPassDescription& NPREffectPassDescription::line_thickness(int value)
+  NPREffectPassDescription& NPREffectPassDescription::line_thickness(int value) ///currently used as kernel size
   {
   uniforms["line_thickness"] = value;
   return *this;
   }
 
   ////////////////////////////////////////////////////////////////////////////////
-  NPREffectPassDescription& NPREffectPassDescription::halftoning(bool value)
+ /* NPREffectPassDescription& NPREffectPassDescription::halftoning(bool value)
   {
   uniforms["halftoning"] = value;
   return *this;
-  }
-
+  }*/
   ////////////////////////////////////////////////////////////////////////////////
-  NPREffectPassDescription& NPREffectPassDescription::sigma_d(float value)
+ /* NPREffectPassDescription& NPREffectPassDescription::sigma_d(float value)
   {
   uniforms["sigma_d"] = value;
   return *this;
-  }
+  }*/
 
 }

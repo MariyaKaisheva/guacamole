@@ -8,6 +8,7 @@ in vec2 gua_quad_coords;
 
 uniform int line_thickness;
 uniform bool halftoning;
+uniform bool apply_outline;
 
 // output
 layout(location=0) out vec3 gua_out_color;
@@ -65,35 +66,34 @@ void main() {
   if(depth < 1)//check for background
   { 
 
-    if( dot(edge_color, vec3(1) ) < 2.8){
+    if(halftoning && dot(edge_color, vec3(1) ) < 2.8){
 
-      if(halftoning){
-
-        float gray = (gua_get_color(texcoord).r + gua_get_color(texcoord).g +gua_get_color(texcoord).b)/3;
-        vec3 gray_color = vec3(gray, gray, gray);
-        int x = int(mod(gl_FragCoord.x, 3));
-        int y = int(mod(gl_FragCoord.y, 3)); 
-
-        gray_color = gray_color + gray_color*(dither_mat[x][y]);
-  
-       if (gray_color.x < dither_mat[x][y])
-        { 
-          gray_color = (floor(gua_get_color(texcoord).xyz*8))/8.0;
-        }
-        else{
-         // gray_color = (ceil(gray_color.xyz*10))/10.0;
-          gray_color = (ceil(gua_get_color(texcoord).xyz*8))/8.0;
-        }
-
-        gua_out_color = gray_color;
+     // if(dot(edge_color, vec3(1) ) < 2.8){
+          float gray = (gua_get_color(texcoord).r + gua_get_color(texcoord).g +gua_get_color(texcoord).b)/3;
+          vec3 gray_color = vec3(gray, gray, gray);
+          int x = int(mod(gl_FragCoord.x, 3));
+          int y = int(mod(gl_FragCoord.y, 3)); 
+          gray_color = gray_color + gray_color*(dither_mat[x][y]);
+      
+          if (gray_color.x < dither_mat[x][y]){ 
+              gray_color = (floor(gua_get_color(texcoord).xyz*4))/4.0;
+          }
+          else {
+              gray_color = (ceil(gua_get_color(texcoord).xyz*4))/4.0;
+          }
+          gua_out_color = gray_color;
       }
-     else{
-      gua_out_color = gua_get_color(texcoord); //no halftoning applied
-     } 
+    else{
+      if(apply_outline && dot(edge_color, vec3(1) ) >= 2.8){
+        gua_out_color = vec3(0.18, 0.18, 0.18); //outline color 
+      }
+      else{
+        gua_out_color = gua_get_color(texcoord); //no halftoning; no outline applied
+      }  
+        
+    } 
        
-    }
-   else{gua_out_color = vec3(0.1, 0.1, 0.1);}  //outline color 
-  }  
+  } 
 else { gua_out_color = vec3(0.25, 0.2, 0.3);} //background color 
 
 
