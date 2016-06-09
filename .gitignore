@@ -59,4 +59,5 @@ examples/lod_simple/example-lod_simple
 examples/npr/example-npr
 examples/plod_shadows/example-plod_shadows
 examples/plod_simple/example-plod_simple
+examples/physics/example-physics
 install
