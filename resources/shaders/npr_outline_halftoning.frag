@@ -31,10 +31,7 @@ void main() {
                          0.7, 0.6, 0.3,
                          0.5, 0.2, 0.9);             
 
-
-  //vec3 color = vec3(gua_get_depth(texcoord));
   vec3 color = gua_get_color(texcoord);
-  //vec3 color = gua_get_normal(texcoord);
   vec3 accumulated_color_x = vec3(0.0, 0.0, 0.0);
   vec3 accumulated_color_y = vec3(0.0, 0.0, 0.0);
 
@@ -44,8 +41,8 @@ void main() {
 
   for (int r = -1; r<2; ++r){
     for (int c = -1; c<2; ++c){
-     //texcoord.x = (gl_FragCoord.x + r * (line_thickness/cam_to_frag_dist) ) / gua_resolution.x;
-     //texcoord.y = (gl_FragCoord.y + c * (line_thickness/cam_to_frag_dist) ) / gua_resolution.y;
+                   //texcoord.x = (gl_FragCoord.x + r * (line_thickness/cam_to_frag_dist) ) / gua_resolution.x;
+                   //texcoord.y = (gl_FragCoord.y + c * (line_thickness/cam_to_frag_dist) ) / gua_resolution.y;
       vec2 tmp_texcoord = vec2( (gl_FragCoord.x + r) / gua_resolution.x, 
                                 (gl_FragCoord.y + c) / gua_resolution.y );
 
@@ -68,24 +65,23 @@ void main() {
 
     if(halftoning && dot(edge_color, vec3(1) ) < 2.8){
 
-     // if(dot(edge_color, vec3(1) ) < 2.8){
-          float gray = (gua_get_color(texcoord).r + gua_get_color(texcoord).g +gua_get_color(texcoord).b)/3;
+          float gray = color.x* 0.2126 + color.y* 0.7152 + color.z* 0.0722;
           vec3 gray_color = vec3(gray, gray, gray);
           int x = int(mod(gl_FragCoord.x, 3));
           int y = int(mod(gl_FragCoord.y, 3)); 
           gray_color = gray_color + gray_color*(dither_mat[x][y]);
       
           if (gray_color.x < dither_mat[x][y]){ 
-              gray_color = (floor(gua_get_color(texcoord).xyz*4))/4.0;
+              gray_color = (floor(gua_get_color(texcoord).xyz*10))/10.0;
           }
           else {
-              gray_color = (ceil(gua_get_color(texcoord).xyz*4))/4.0;
+              gray_color = (ceil(gua_get_color(texcoord).xyz*10.0))/10.0;
           }
           gua_out_color = gray_color;
       }
     else{
       if(apply_outline && dot(edge_color, vec3(1) ) >= 2.8){
-        gua_out_color = vec3(0.18, 0.18, 0.18); //outline color 
+        gua_out_color = vec3(0.0, 0.0, 0.0); //outline color 
       }
       else{
         gua_out_color = gua_get_color(texcoord); //no halftoning; no outline applied

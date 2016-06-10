@@ -23,100 +23,20 @@ in vec2 gua_quad_coords;
 
 uint bitset[((@max_lights_num@ - 1) >> 5) + 1];
 
-///////////////////////////////////////////////////////////////////////////////
-/*vec2
-longitude_latitude(in vec3 normal)
-{
-  const float invpi = 1.0 / 3.14159265359;
 
-  vec2 a_xz = normalize(normal.xz);
-  vec2 a_yz = normalize(normal.yz);
-
-  return vec2(0.5 * (1.0 + invpi * atan(a_xz.x, -a_xz.y)),
-              acos(-normal.y) * invpi);
-}
-
-// https://www.unrealengine.com/blog/physically-based-shading-on-mobile
-vec3 EnvBRDFApprox( vec3 SpecularColor, float Roughness, float NoV )
-{
-  const vec4 c0 = vec4(-1, -0.0275, -0.572, 0.022);
-  const vec4 c1 = vec4(1, 0.0425, 1.04, -0.04);
-  vec4 r = Roughness * c0 + c1;
-  float a004 = min( r.x * r.x, exp2( -9.28 * NoV ) ) * r.x + r.y;
-  vec2 AB = vec2( -1.04, 1.04 ) * a004 + r.zw;
-  return SpecularColor * AB.x + AB.y;
-}*/
-
-
-///////////////////////////////////////////////////////////////////////////////
-#if @enable_abuffer@
-vec4 abuf_shade(uint pos, float depth) {
-
-  uvec4 data = frag_data[pos];
-
-  vec3 color = vec3(unpackUnorm2x16(data.x), unpackUnorm2x16(data.y).x);
-  vec3 normal = vec3(unpackSnorm2x16(data.y).y, unpackSnorm2x16(data.z));
-  vec3 pbr = unpackUnorm4x8(data.w).xyz;
-  uint flags = bitfieldExtract(data.w, 24, 8);
-
-  vec4 screen_space_pos = vec4(gua_get_quad_coords() * 2.0 - 1.0, depth, 1.0);
-  vec4 h = gua_inverse_projection_view_matrix * screen_space_pos;
-  vec3 position = h.xyz / h.w;
-
-  vec4 frag_color_emit = vec4(shade_for_all_lights(color, normal, position, pbr, flags, false), pbr.r);
-  return frag_color_emit;
-}
-#endif
-
+//uniform int factor; 
 ///////////////////////////////////////////////////////////////////////////////
 
 // output
 layout(location=0) out vec3 gua_out_color;
-
+layout(location=2) out vec3 gua_out_normal; 
 
 ///////////////////////////////////////////////////////////////////////////////
-
-// skymap
 
 float gua_my_atan2(float a, float b) {
   return 2.0 * atan(a/(sqrt(b*b + a*a) + b));
 }
 
-///////////////////////////////////////////////////////////////////////////////
-/*vec3 gua_apply_background_texture() {
-  vec3 col1 = texture(sampler2D(gua_background_texture), gua_quad_coords).xyz;
-  vec3 col2 = texture(sampler2D(gua_alternative_background_texture), gua_quad_coords).xyz;
-  return mix(col1, col2, gua_background_texture_blend_factor);
-}
-
-///////////////////////////////////////////////////////////////////////////////
-vec3 gua_apply_cubemap_texture() {
-  vec3 pos = gua_get_position();
-  vec3 view = normalize(pos - gua_camera_position) ;
-  vec3 col1 = texture(samplerCube(gua_background_texture), view).xyz;
-  vec3 col2 = texture(samplerCube(gua_alternative_background_texture), view).xyz;
-  return mix(col1, col2, gua_background_texture_blend_factor);
-}
-
-///////////////////////////////////////////////////////////////////////////////
-vec3 gua_apply_skymap_texture() {
-  vec3 pos = gua_get_position();
-  vec3 view = normalize(pos - gua_camera_position);
-  const float pi = 3.14159265359;
-  float x = 0.5 + 0.5*gua_my_atan2(view.x, -view.z)/pi;
-  float y = 1.0 - acos(view.y)/pi;
-  vec2 texcoord = vec2(x, y);
-  float l = length(normalize(gua_get_position(vec2(0, 0.5)) - gua_camera_position) - normalize(gua_get_position(vec2(1, 0.5)) - gua_camera_position));
-  vec2 uv = l*(gua_get_quad_coords() - 1.0)/4.0 + 0.5;
-  vec3 col1 = textureGrad(sampler2D(gua_background_texture), texcoord, dFdx(uv), dFdy(uv)).xyz;
-  vec3 col2 = textureGrad(sampler2D(gua_alternative_background_texture), texcoord, dFdx(uv), dFdy(uv)).xyz;
-  return mix(col1, col2, gua_background_texture_blend_factor);
-}
-
-///////////////////////////////////////////////////////////////////////////////
-vec3 gua_apply_background_color() {
-  return gua_background_color;
-}*/
 
 ///////////////////////////////////////////////////////////////////////////////
 vec3 get_point_light_direction(vec3 position){
@@ -128,7 +48,38 @@ vec3 get_point_light_direction(vec3 position){
     return gua_light_direction;
 }
 
-///////////////////////////////////////////////////////////////////////////////  
+///////////////////////////////////////////////////////////////////////////////
+
+float get_weigt(vec2 neighbour_coord, vec2 target_coord){
+  float sigma_d = 0.5;  
+  float spatial_distance_term =  pow((target_coord.x - neighbour_coord.x), 2) + pow((target_coord.y - neighbour_coord.y), 2);
+  spatial_distance_term /= 2.0*sigma_d*sigma_d;
+  float weight =  (exp(-spatial_distance_term))/(2*3.14*sigma_d*sigma_d);
+  return weight;
+}
+
+///////////////////////////////////////////////////////////////////////////////
+vec3 get_averaged_normal(vec2 texcoord){
+      vec3 new_normal = vec3(0.0, 0.0, 0.0);
+      float summed_weight = 0.0;
+      int kernel_size = 2;
+
+      for (int r =  - kernel_size  ; r <=  kernel_size  ; ++r){
+        for(int c =  - kernel_size ; c <=  kernel_size ; ++c){
+          float x_coord = (gl_FragCoord.x + r) / gua_resolution.x;
+          float y_coord = (gl_FragCoord.y + c) / gua_resolution.y;
+          vec2 current_neighbour_texcoord = vec2(x_coord, y_coord);
+          float weight = get_weigt(current_neighbour_texcoord, texcoord);
+          new_normal += gua_get_normal(current_neighbour_texcoord)*weight;
+          summed_weight += weight;
+        }
+      }
+      gua_out_normal = new_normal.xyz/summed_weight;
+      return new_normal.xyz/summed_weight; 
+}
+///////////////////////////////////////////////////////////////////////////////
+
+
 void main() {
 
   float depth = gua_get_depth();
@@ -139,9 +90,10 @@ void main() {
   if(depth < 1 ){
         //gua_out_color = gua_get_normal(texcoord);
         gua_out_color = gua_get_color(texcoord);
+       // vec3 smooth_normal = get_averaged_normal(texcoord);
 
         ShadingTerms T;
-        gua_prepare_shading(T, gua_get_color(), gua_get_normal(), gua_get_position(), gua_get_pbr()); //out T
+        gua_prepare_shading(T, gua_get_color(), gua_get_normal()/* smooth_normal*/, gua_get_position(), gua_get_pbr()); //out T
 
         vec3 light_direction_vec = get_point_light_direction(gua_get_position());
 
@@ -150,13 +102,14 @@ void main() {
       if (gua_enable_gooch_shading){
               //Gooch shading model http://www.cs.northwestern.edu/~ago820/SIG98/paper/drawing.html
               float alpha = 0.4;
-              float beta = 0.5;
+              float beta = 0.8;
               float b = 0.3; //blue component
-              float y = 0.7; //yellow component
+              float y = 0.4; //yellow component
               float temp = (1 + clamp(dot(T.N, light_direction_vec), -1.0, 1.0))/2; //  clam not needed here
-              vec3 k_cool = vec3(0, 0, b) + alpha*gua_get_color(texcoord);
+              vec3 k_cool = vec3(0, 0, b)  + alpha*gua_get_color(texcoord);
               vec3 k_warm = vec3(y, y, 0) + beta*gua_get_color(texcoord);
-              gua_out_color = (1 - temp)*k_cool + temp*k_warm;  //swap  'temp' and '1-temp' terms to inverse light source impression
+              gua_out_color = (1 - temp)*k_cool + temp*k_warm; 
+             // gua_out_color = temp*k_cool + (1 - temp)*k_warm;  //swap  'temp' and '1-temp' terms to inverse light source impression
                                                                 //fromula difference: http://developer.amd.com/wordpress/media/2012/10/ShaderX_NPR.pdf
       }
 
@@ -177,13 +130,11 @@ void main() {
         } 
         else{
            //outline color
-          //gua_out_color = vec3(0.3, 0.3, 0.3);
-          gua_out_color = T.diffuse;
+          //gua_out_color = vec3(1.0, 0.0, 0.0);
+         gua_out_color = T.diffuse;
         }
 
       }     
-        
-
   }
   else {
     gua_out_color = vec3(0.6, 0.6, 0.6);

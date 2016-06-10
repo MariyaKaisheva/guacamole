@@ -24,6 +24,7 @@
 
 #include <gua/renderer/TriMeshRessource.hpp>
 #include <gua/renderer/TriMeshRenderer.hpp>
+#include <gua/renderer/ToonTriMeshRenderer.hpp>
 #include <gua/renderer/GBuffer.hpp>
 #include <gua/renderer/Pipeline.hpp>
 #include <gua/utils/Logger.hpp>
@@ -69,7 +70,8 @@ PipelinePass TriMeshPassDescription::make_pass(RenderContext const& ctx, Substit
 {
   PipelinePass pass{*this, ctx, substitution_map};
 
-  auto renderer = std::make_shared<TriMeshRenderer>();
+  //auto renderer = std::make_shared<TriMeshRenderer>();
+  auto renderer = std::make_shared<ToonTriMeshRenderer>();
   renderer->set_global_substitution_map(substitution_map);
   renderer->create_state_objects(ctx);
 

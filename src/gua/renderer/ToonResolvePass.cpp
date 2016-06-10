@@ -52,6 +52,7 @@ ToonResolvePassDescription::ToonResolvePassDescription()
 
   // default background configuration
   uniforms["gua_enable_gooch_shading"] = false; 
+  uniforms["factor"] = 7;
   /*uniforms["gua_background_mode"] = static_cast<int>(BackgroundMode::COLOR);
   uniforms["gua_background_color"] = scm::math::vec3f(0.2f, 0.2f, 0.2f);
   uniforms["gua_background_texture"] = std::string("gua_default_texture");
@@ -345,6 +346,13 @@ float ResolvePassDescription::screen_space_shadow_intensity() const {
   return boost::get<float>(uniform->second.data);
 }
 */
+
+////////////////////////////////////////////////////////////////////////////////
+ToonResolvePassDescription& ToonResolvePassDescription::set_brightness_factor(int value) {
+  uniforms["factor"] = value;
+  return *this;
+} 
+
 ////////////////////////////////////////////////////////////////////////////////
 ToonResolvePassDescription& ToonResolvePassDescription::enable_gooch_shading(bool enable_gooch_shading) {
   uniforms["gua_enable_gooch_shading"] = enable_gooch_shading;

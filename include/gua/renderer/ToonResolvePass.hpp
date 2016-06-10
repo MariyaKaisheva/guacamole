@@ -130,6 +130,8 @@ class GUA_DLL ToonResolvePassDescription : public PipelinePassDescription {
   /////////////////////////////////////////////////////////////////////////////
   // fog - temporally misused function to switch shading models
   /////////////////////////////////////////////////////////////////////////////
+  ToonResolvePassDescription& set_brightness_factor(int value);
+  /////////////////////////////////////////////////////////////////////////////
   ToonResolvePassDescription& enable_gooch_shading(bool enable_gooch_shading);
   bool enable_gooch_shading() const;
 

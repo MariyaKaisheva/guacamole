@@ -44,13 +44,12 @@
 
 #include <gua/renderer/PBSMaterialFactory.hpp> 
 
-
 #define USE_ASUS_3D_WORKSTATION 1
 #define USE_LOW_RES_WORKSTATION 0
 
 #define USE_QUAD_BUFFERED 0
-#define USE_ANAGLYPH 1
-#define USE_MONO 0 
+#define USE_ANAGLYPH 0
+#define USE_MONO 1 
 
 
 #define USE_TOON_RESOLVE_PASS 0
@@ -98,6 +97,7 @@ bool apply_bilateral_filter = false;
 bool apply_halftoning_effect = false; 
 bool create_screenspace_outlines = false; 
 int thickness = 0;
+//int brightness_factor = 1;
 int max_thickness = 15; //confusing name 
 int min_thickness = 0; //confusing name 
 float sigma_d = 0.1; //not used currently
@@ -108,7 +108,7 @@ void rebuild_pipe(gua::PipelineDescription& pipe) {
   pipe.clear();
   pipe.add_pass(std::make_shared<gua::TriMeshPassDescription>());
   pipe.add_pass(std::make_shared<gua::PLodPassDescription>());
-  pipe.add_pass(std::make_shared<gua::SkeletalAnimationPassDescription>()); 
+ // pipe.add_pass(std::make_shared<gua::SkeletalAnimationPassDescription>()); 
   pipe.add_pass(std::make_shared<gua::LightVisibilityPassDescription>());
 
 
@@ -120,11 +120,6 @@ void rebuild_pipe(gua::PipelineDescription& pipe) {
     pipe.add_pass(std::make_shared<gua::ToonResolvePassDescription>());
   }
    
-  /*if (apply_halftoning_effect){
-    pipe.add_pass(std::make_shared<gua::NprOutlinePassDescription>());
-    pipe.get_npr_outline_pass()->halftoning(apply_halftoning_effect);
-  }*/
-
   if (apply_bilateral_filter){
 
     for(int i = 0; i < num_screenspace_passes; ++i){
@@ -180,6 +175,8 @@ void key_press(gua::PipelineDescription& pipe, gua::SceneGraph& graph, int key, 
     case 'w':      
       if(thickness < max_thickness && apply_bilateral_filter) {
         ++thickness;
+        /*++brightness_factor;
+        pipe.get_toon_resolve_pass()->set_brightness_fact(brightness_factor); */
         pipe.get_npr_pass()->line_thickness(thickness);
       }
     break;   
@@ -306,7 +303,8 @@ int main(int argc, char** argv) {
           gua::TriMeshLoader::NORMALIZE_SCALE));
 
   //---Sponsa---
-  auto scene_node(trimesh_loader.create_geometry_from_file("sponsa", "/home/vajo3185/Modified_Sponza/sponza.obj", gua::TriMeshLoader::NORMALIZE_POSITION /*|  gua::TriMeshLoader::NORMALIZE_SCALE*/ | gua::TriMeshLoader::LOAD_MATERIALS ));
+  auto scene_node(trimesh_loader.create_geometry_from_file("sponsa", "/home/vajo3185/Modified_Sponza/sponza.obj", gua::TriMeshLoader::NORMALIZE_POSITION /*|  gua::TriMeshLoader::NORMALIZE_SCALE*/ | 
+                    gua::TriMeshLoader::LOAD_MATERIALS ));
 
 
   //---teapod----
@@ -314,6 +312,13 @@ int main(int argc, char** argv) {
       "teapot", "data/objects/teapot.obj",
       gua::TriMeshLoader::NORMALIZE_POSITION |
           gua::TriMeshLoader::NORMALIZE_SCALE));*/
+
+   auto kotka_node(trimesh_loader.create_geometry_from_file(
+                    "cat", "/home/vajo3185/cat/cat.obj",
+                    gua::TriMeshLoader::NORMALIZE_POSITION |
+                    gua::TriMeshLoader::NORMALIZE_SCALE | 
+                    gua::TriMeshLoader::LOAD_MATERIALS 
+                    ));   
 
    auto sphere(trimesh_loader.create_geometry_from_file(
                 "icosphere", "data/objects/icosphere.obj", 
@@ -348,11 +353,13 @@ int main(int argc, char** argv) {
                                                    gua::LodLoader::NORMALIZE_POSITION);
 
    snail_node->set_transform(scm::math::make_scale(5.0, 5.0,5.0));
+   kotka_node->set_transform(scm::math::make_translation(-80.0, -660.0, -70.0)*scm::math::make_rotation(65.0, 0.0, 1.0, 0.0)*scm::math::make_scale(150.0, 150.0, 150.0));
    plod_node->set_radius_scale(1.3f);
 
 
   graph.add_node("/transform", scene_node);  
   graph.add_node("/transform", plod_node);
+  graph.add_node("/transform", kotka_node);
   teapot->set_draw_bounding_box(true);
 
 
@@ -361,7 +368,7 @@ int main(int argc, char** argv) {
   light2->data.brightness = 1500000.0f;
   light2->scale(800.f);
   light2->translate(-3.f, 5.f, 5.f);
-  graph.add_node("/light2", sphere);
+  //graph.add_node("/light2", sphere);
 
 
 
@@ -504,6 +511,8 @@ int main(int argc, char** argv) {
       navigation->translate(0.0, 0.0, -amount);
     if( moves_negative_x ) 
       navigation->translate(0.0, 0.0,  amount);
+
+    gua::math::mat4 camera_transl_mat = navigation-> get_transform();
     
     // set time variable for animation
     i += 1.0 / 600.0;
@@ -519,6 +528,7 @@ int main(int argc, char** argv) {
                                   gua::math::mat4(trackball.rotation());
     #endif
 
+     gua::math::mat4 inverse_modelview_matrix = scm::math::inverse(modelmatrix);                             
 
      gua::math::mat4 scale_mat = scm::math::make_scale(200.0, 200.0, 200.0);
      gua::math::mat4 rot_mat_x = scm::math::make_rotation(-90.0, 1.0, 0.0, 0.0);
@@ -528,11 +538,11 @@ int main(int argc, char** argv) {
 
 
 
-    transform->set_transform(scm::math::make_translation(0.0, 0.0, 2.0) * modelmatrix *  scm::math::make_rotation(-90.0, 0.0, 1.0, 0.0)* scm::math::make_scale(0.4, 0.4, 0.4));
-
+    transform->set_transform(scm::math::make_translation(0.0, 0.0, 2.0)  *modelmatrix *  scm::math::make_rotation(-90.0, 0.0, 1.0, 0.0)* scm::math::make_scale(0.4, 0.4, 0.4));
+    //navigation->set_transform(inverse_modelview_matrix); 
     //gua::math::mat4 plod_node_trasnformations = plod_node->get_trasform();
     
-    std::cout << "\n\n\nNew frame: " << "\n";
+    //std::cout << "\n\n\nNew frame: " << "\n";
 
     if (window->should_close()) {
       renderer.stop();
