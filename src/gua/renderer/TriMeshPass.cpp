@@ -71,9 +71,11 @@ PipelinePass TriMeshPassDescription::make_pass(RenderContext const& ctx, Substit
   PipelinePass pass{*this, ctx, substitution_map};
 
   //auto renderer = std::make_shared<TriMeshRenderer>();
-  auto renderer = std::make_shared<ToonTriMeshRenderer>();
+  /*auto renderer = std::make_shared<ToonTriMeshRenderer>();
   renderer->set_global_substitution_map(substitution_map);
-  renderer->create_state_objects(ctx);
+  renderer->create_state_objects(ctx);*/
+
+  auto renderer = std::make_shared<TriMeshRenderer>(ctx, substitution_map);
 
   pass.process_ = [renderer](
     PipelinePass& pass, PipelinePassDescription const& desc, Pipeline & pipe) {

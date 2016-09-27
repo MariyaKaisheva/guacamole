@@ -40,7 +40,12 @@ namespace gua {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-TriMeshRenderer::TriMeshRenderer()
+TriMeshRenderer::TriMeshRenderer(RenderContext const& ctx, SubstitutionMap const& smap)
+  : rs_cull_back_(ctx.render_device->create_rasterizer_state(scm::gl::FILL_SOLID, scm::gl::CULL_BACK))
+  , rs_cull_none_(ctx.render_device->create_rasterizer_state(scm::gl::FILL_SOLID, scm::gl::CULL_NONE))
+  , program_stages_()
+  , programs_()
+  , global_substitution_map_(smap)
 {
 #ifdef GUACAMOLE_RUNTIME_PROGRAM_COMPILATION
   ResourceFactory factory;
@@ -53,14 +58,6 @@ TriMeshRenderer::TriMeshRenderer()
 
   program_stages_.push_back(ShaderProgramStage(scm::gl::STAGE_VERTEX_SHADER,   v_shader));
   program_stages_.push_back(ShaderProgramStage(scm::gl::STAGE_FRAGMENT_SHADER, f_shader));
-}
-
-////////////////////////////////////////////////////////////////////////////////
-
-void TriMeshRenderer::create_state_objects(RenderContext const& ctx)
-{
-  rs_cull_back_ = ctx.render_device->create_rasterizer_state(scm::gl::FILL_SOLID, scm::gl::CULL_BACK);
-  rs_cull_none_ = ctx.render_device->create_rasterizer_state(scm::gl::FILL_SOLID, scm::gl::CULL_NONE);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -137,7 +134,7 @@ void TriMeshRenderer::render(Pipeline& pipe, PipelinePassDescription const& desc
         }
         if (current_shader) {
           current_shader->use(ctx);
-          current_shader->set_uniform(ctx, math::vec2i(target.get_width(),
+          current_shader->set_uniform(ctx, math::vec2ui(target.get_width(),
                                                        target.get_height()),
                                       "gua_resolution"); //TODO: pass gua_resolution. Probably should be somehow else implemented
           current_shader->set_uniform(ctx, 1.0f / target.get_width(),  "gua_texel_width");
