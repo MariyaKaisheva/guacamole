@@ -168,7 +168,7 @@ void ToonTriMeshRenderer::render(Pipeline& pipe, PipelinePassDescription const& 
           tri_mesh_node->get_material()->apply_uniforms(ctx, current_shader.get(), view_id);
         }
 
-        current_rasterizer_state = rs_cull_none_;//tri_mesh_node->get_material()->get_show_back_faces() ? rs_cull_none_ : rs_cull_back_;
+        current_rasterizer_state = tri_mesh_node->get_material()->get_show_back_faces() ? rs_cull_none_ : rs_cull_back_;
 
         if (ctx.render_context->current_rasterizer_state() != current_rasterizer_state) {
           ctx.render_context->set_rasterizer_state(current_rasterizer_state);

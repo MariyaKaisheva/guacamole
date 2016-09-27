@@ -54,19 +54,19 @@ void main() {
   gua_alpha             = 1.0;
 
   // normal mode or high fidelity shadows
-  if( gl_FrontFacing == true) {
+  //if( gl_FrontFacing == true) {
     if (gua_rendering_mode != 1) {
       @material_method_calls_frag@
     }
 
-  } else {
-    gua_color = vec3(0.0, 0.0, 0.0);
+ /* } else {
+    gua_color = vec3(0.0, 1.0, 0.0);
     gua_roughness = 1.0;
     gua_metalness = 0.0;
     gua_emissivity = 1.0;
-  }
+  }*/
 
-  //gua_color             = vec3(1.0, 0.0, 1.0);//GeometryIn.gua_varying_color;
+ // gua_color             = vec3( (gua_tangent + vec3(1.0, 1.0, 1.0) / vec3(2.0, 2.0, 2.0) ) ) ;
   submit_fragment(gl_FragCoord.z);
 
 }

@@ -48,8 +48,9 @@
 #define USE_LOW_RES_WORKSTATION 0
 
 #define USE_QUAD_BUFFERED 0
+#define USE_SIDE_BY_SIDE 1
 #define USE_ANAGLYPH 0
-#define USE_MONO 1 
+#define USE_MONO 0 
 
 
 #define USE_TOON_RESOLVE_PASS 0
@@ -170,6 +171,14 @@ void key_press(gua::PipelineDescription& pipe, gua::SceneGraph& graph, int key, 
  
   if (action == 0) return;
   switch(std::tolower(key)){
+
+    case 'o':
+      use_toon_resolve_pass = false;
+      create_screenspace_outlines = false; 
+      apply_bilateral_filter = false; 
+      apply_halftoning_effect = false;
+      rebuild_pipe(pipe);
+    break;  
     
     //line thickness
     case 'w':      
@@ -226,7 +235,7 @@ void key_press(gua::PipelineDescription& pipe, gua::SceneGraph& graph, int key, 
       rebuild_pipe(pipe);
     break; 
 
-    //bilateral filter - screenspace pass
+    //bilateral filter - screenspace passcreate_screenspace_outlines =
     case 'b':
       apply_bilateral_filter = !apply_bilateral_filter;
       rebuild_pipe(pipe);
@@ -475,8 +484,12 @@ int main(int argc, char** argv) {
   window->config.set_stereo_mode(gua::StereoMode::QUAD_BUFFERED);
   #endif
 
+  #if USE_SIDE_BY_SIDE
+   window->config.set_stereo_mode(gua::StereoMode::SIDE_BY_SIDE);
+  #endif
+
   #if USE_ANAGLYPH
-  window->config.set_stereo_mode(gua::StereoMode::ANAGLYPH_RED_CYAN);
+   window->config.set_stereo_mode(gua::StereoMode::ANAGLYPH_RED_CYAN);
   #endif
 
   #if USE_MONO

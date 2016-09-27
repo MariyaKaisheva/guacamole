@@ -42,12 +42,7 @@ out VertexData{
 float shrink_factor = 0.95;
 
 bool is_front_facing() {
-  //vec3 zero_to_one = normalize(VertexIn[1].gua_varying_view_position - VertexIn[0].gua_varying_view_position) ;
-  //vec3 zero_to_two = normalize(VertexIn[2].gua_varying_view_position - VertexIn[0].gua_varying_view_position ) ;
-
-  vec3 cam_to_tri = normalize(VertexIn[0].gua_varying_world_position - gua_camera_position_4.xyz);
-
-  
+  vec3 cam_to_tri = normalize(VertexIn[0].gua_varying_world_position - gua_camera_position_4.xyz);  
   return dot(VertexIn[0].gua_varying_normal, cam_to_tri) > 0.0;
 
 }
@@ -61,11 +56,12 @@ void main() {
     GeometryOut.gua_varying_world_position = VertexIn[index].gua_varying_world_position;
     GeometryOut.gua_varying_view_position = VertexIn[index].gua_varying_view_position;
 
-    if( is_front_facing() ) {
+    /*if( is_front_facing() ) {
       GeometryOut.gua_varying_normal = -VertexIn[index].gua_varying_normal;
     } else {
       GeometryOut.gua_varying_normal = VertexIn[index].gua_varying_normal;    	
-    }
+    }*/
+    GeometryOut.gua_varying_normal = VertexIn[index].gua_varying_normal;  
 	GeometryOut.gua_varying_tangent = VertexIn[index].gua_varying_tangent;
 	GeometryOut.gua_varying_bitangent = VertexIn[index].gua_varying_bitangent;
 	GeometryOut.gua_varying_texcoords = VertexIn[index].gua_varying_texcoords;
@@ -76,12 +72,12 @@ void main() {
 	
 	vec3 modified_position; 
 	
-    if( is_front_facing() ) {
-      modified_position = centroid_position + 1.05*(VertexIn[index].gua_varying_view_position - centroid_position);
+   /* if( is_front_facing() ) {
+      modified_position = centroid_position + 1.0*(VertexIn[index].gua_varying_view_position - centroid_position);
     } else {
       modified_position = centroid_position + 1.0*(VertexIn[index].gua_varying_view_position - centroid_position);
-    }
-
+    }*/
+	modified_position = centroid_position + 1.0*(VertexIn[index].gua_varying_view_position - centroid_position);
 	gl_Position = gua_projection_matrix * vec4(modified_position , 1.0);
 	//gl_Position = gua_projection_matrix * vec4(VertexIn[index].gua_varying_view_position , 1.0);
 	EmitVertex();
