@@ -21,6 +21,10 @@
 
 #include <functional>
 
+
+#include <scm/input/tracking/art_dtrack.h>
+#include <scm/input/tracking/target.h>
+
 #include <gua/guacamole.hpp>
 #include <gua/renderer/TriMeshLoader.hpp>
 #include <gua/renderer/ToneMappingPass.hpp>
@@ -47,11 +51,12 @@
 #define USE_ASUS_3D_WORKSTATION 1
 #define USE_LOW_RES_WORKSTATION 0
 
-#define USE_QUAD_BUFFERED 0
+#define USE_QUAD_BUFFERED 0//seems to not work anymore
 #define USE_SIDE_BY_SIDE 1
 #define USE_ANAGLYPH 0
 #define USE_MONO 0 
 
+#define TRACKING_ENABLED 1
 
 #define USE_TOON_RESOLVE_PASS 0
 
@@ -407,17 +412,19 @@ int main(int argc, char** argv) {
 
 
   auto navigation = graph.add_node<gua::node::TransformNode>("/", "navigation");
-
   auto screen = graph.add_node<gua::node::ScreenNode>("/navigation", "screen");
+  
+
   //physical size of output viewport
 
-  #if USE_ASUS_3D_WORKSTATION
+ #if USE_ASUS_3D_WORKSTATION
   screen->data.set_size(gua::math::vec2(0.598f, 0.336f));
   #else
   screen->data.set_size(gua::math::vec2(0.40f, 0.20f));
   #endif
   screen->translate(0, 0, 1.0);
 
+  
   auto camera = graph.add_node<gua::node::CameraNode>("/navigation/screen", "cam");
   camera->translate(0.0, 0, 2.0);
   camera->config.set_resolution(resolution);
@@ -426,8 +433,9 @@ int main(int argc, char** argv) {
   camera->config.set_output_window_name("main_window");
   camera->config.set_near_clip(0.1);
   camera->config.set_far_clip(3000.0);
+
   
-  #if USE_MONO
+  #if USE_MONO 
   camera->config.set_enable_stereo(false);
   #else
   camera->config.set_enable_stereo(true);
@@ -469,14 +477,24 @@ int main(int argc, char** argv) {
     std::placeholders::_2,
     std::placeholders::_3,
     std::placeholders::_4));
-
   #endif
 
 
   gua::WindowDatabase::instance()->add("main_window", window);
 
+
   window->config.set_enable_vsync(false);
   window->config.set_size(resolution);
+
+   // tmp
+      //window->config.set_size(gua::math::vec2ui(2*window_width, window_height));
+    window->config.set_right_position(gua::math::vec2ui(resolution[0], 0));
+    window->config.set_right_resolution(resolution);
+    window->config.set_left_position(gua::math::vec2ui(0, 0));
+    window->config.set_left_resolution(resolution);
+
+  // /tmp
+
 
   window->config.set_resolution(resolution);
 
@@ -486,6 +504,9 @@ int main(int argc, char** argv) {
 
   #if USE_SIDE_BY_SIDE
    window->config.set_stereo_mode(gua::StereoMode::SIDE_BY_SIDE);
+   window->config.set_fullscreen_mode(true);
+
+  
   #endif
 
   #if USE_ANAGLYPH
@@ -495,6 +516,30 @@ int main(int argc, char** argv) {
   #if USE_MONO
   window->config.set_stereo_mode(gua::StereoMode::MONO);
   #endif
+
+
+  //------------------tracking--------------------------
+
+  #if USE_SIDE_BY_SIDE
+    gua::math::mat4 current_tracking_matrix(gua::math::mat4::identity());
+    std::thread tracking_thread([&]() {
+      scm::inp::tracker::target_container targets;
+      targets.insert(scm::inp::tracker::target_container::value_type(5, scm::inp::target(5)));
+
+      scm::inp::art_dtrack* dtrack(new scm::inp::art_dtrack(5000));
+      if (!dtrack->initialize()) {
+        std::cerr << std::endl << "Tracking System Fault" << std::endl;
+        return;
+      }
+      while (true) {
+        dtrack->update(targets);
+        auto t = targets.find(5)->second.transform();
+        t[12] /= 1000.f; t[13] /= 1000.f; t[14] /= 1000.f;
+        current_tracking_matrix = t;
+      }
+    });
+  #endif
+
 
 
   gua::Renderer renderer;
@@ -555,7 +600,9 @@ int main(int argc, char** argv) {
     //navigation->set_transform(inverse_modelview_matrix); 
     //gua::math::mat4 plod_node_trasnformations = plod_node->get_trasform();
     
-    //std::cout << "\n\n\nNew frame: " << "\n";
+    #if (USE_SIDE_BY_SIDE && TRACKING_ENABLED)
+    navigation->set_transform(current_tracking_matrix);
+    #endif 
 
     if (window->should_close()) {
       renderer.stop();
@@ -564,8 +611,6 @@ int main(int argc, char** argv) {
     } else {
       renderer.queue_draw({&graph});
     }
-
-
 
   });
 
