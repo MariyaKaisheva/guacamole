@@ -52,8 +52,8 @@
 #define USE_LOW_RES_WORKSTATION 0
 
 #define USE_QUAD_BUFFERED 0//seems to not work anymore
-#define USE_SIDE_BY_SIDE 1
-#define USE_ANAGLYPH 0
+#define USE_SIDE_BY_SIDE 0
+#define USE_ANAGLYPH 1
 #define USE_MONO 0 
 
 #define TRACKING_ENABLED 1
@@ -109,6 +109,28 @@ int min_thickness = 0; //confusing name
 float sigma_d = 0.1; //not used currently
 
 int num_screenspace_passes = 1;
+
+
+// physical set-up for SBS stereo workstation 
+float screen_width = 0.595f;
+float screen_height = 0.3346f;
+//float screen_distance = 0.6f;
+
+float screen_offset_x = 3.192f;
+float screen_offset_y = 1.2125f;
+float screen_offset_z = 1.148f;
+
+float screen_rotation_x = -12.46f;
+float screen_rotation_y = -90.0f;
+float screen_rotation_z = 0.0f;
+
+//float eye_dist;
+float glass_eye_offset = 0.03f;
+
+int   window_width = 2560;
+int   window_height = 1440;
+
+
 
 void rebuild_pipe(gua::PipelineDescription& pipe) {
   pipe.clear();
@@ -384,9 +406,6 @@ int main(int argc, char** argv) {
   light2->translate(-3.f, 5.f, 5.f);
   //graph.add_node("/light2", sphere);
 
-
-
-
   
   // setup rendering pipeline and window
 
@@ -417,22 +436,42 @@ int main(int argc, char** argv) {
 
   //physical size of output viewport
 
- #if USE_ASUS_3D_WORKSTATION
+  #if USE_ASUS_3D_WORKSTATION
   screen->data.set_size(gua::math::vec2(0.598f, 0.336f));
+  //screen->translate(0, 0, 1.0);
   #else
   screen->data.set_size(gua::math::vec2(0.40f, 0.20f));
-  #endif
   screen->translate(0, 0, 1.0);
-
+  #endif
   
+  #if USE_SIDE_BY_SIDE
+  screen->data.set_size(gua::math::vec2(screen_width, screen_height));
+  screen->rotate(screen_rotation_x, 1, 0, 0);
+  screen->rotate(screen_rotation_y, 0, 1, 0);
+  screen->rotate(screen_rotation_z, 0, 0, 1);
+  screen->translate(screen_offset_x, screen_offset_y, screen_offset_z);
+  #endif
+
+
+
+  #if USE_SIDE_BY_SIDE
+  //auto navigation_eye_offset = graph.add_node<gua::node::TransformNode>("/navigation", "eye_offset");
+  //navigation_eye_offset->translate(0, 0, glass_eye_offset);
+  //auto camera = graph.add_node<gua::node::CameraNode>("/navigation/eye_offset", "cam");
+  //camera->translate(screen_offset_x, screen_offset_y, screen_offset_z);
+  auto camera = graph.add_node<gua::node::CameraNode>("/navigation/screen", "cam");  
+  camera->translate(0.0, 0.0, glass_eye_offset);
+  #else
   auto camera = graph.add_node<gua::node::CameraNode>("/navigation/screen", "cam");
-  camera->translate(0.0, 0, 2.0);
+  #endif
+  camera->translate(0.0, 0.0, 2.0);
   camera->config.set_resolution(resolution);
   camera->config.set_screen_path("/navigation/screen");
   camera->config.set_scene_graph_name("main_scenegraph");
   camera->config.set_output_window_name("main_window");
   camera->config.set_near_clip(0.1);
   camera->config.set_far_clip(3000.0);
+
 
   
   #if USE_MONO 
@@ -486,14 +525,7 @@ int main(int argc, char** argv) {
   window->config.set_enable_vsync(false);
   window->config.set_size(resolution);
 
-   // tmp
-      //window->config.set_size(gua::math::vec2ui(2*window_width, window_height));
-    window->config.set_right_position(gua::math::vec2ui(resolution[0], 0));
-    window->config.set_right_resolution(resolution);
-    window->config.set_left_position(gua::math::vec2ui(0, 0));
-    window->config.set_left_resolution(resolution);
-
-  // /tmp
+  
 
 
   window->config.set_resolution(resolution);
@@ -504,9 +536,12 @@ int main(int argc, char** argv) {
 
   #if USE_SIDE_BY_SIDE
    window->config.set_stereo_mode(gua::StereoMode::SIDE_BY_SIDE);
-   window->config.set_fullscreen_mode(true);
-
-  
+   window->config.set_fullscreen_mode(true); 
+   window->config.set_size(gua::math::vec2ui(2*window_width, window_height));
+   window->config.set_right_position(gua::math::vec2ui(resolution[0], 0));
+   window->config.set_right_resolution(resolution);
+   window->config.set_left_position(gua::math::vec2ui(0, 0));
+   window->config.set_left_resolution(resolution);
   #endif
 
   #if USE_ANAGLYPH
