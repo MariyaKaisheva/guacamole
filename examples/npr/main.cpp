@@ -1,3 +1,4 @@
+
 /******************************************************************************
  * guacamole - delicious VR                                                   *
  *                                                                            *
@@ -52,8 +53,8 @@
 #define USE_LOW_RES_WORKSTATION 0
 
 #define USE_QUAD_BUFFERED 0//seems to not work anymore
-#define USE_SIDE_BY_SIDE 0
-#define USE_ANAGLYPH 1
+#define USE_SIDE_BY_SIDE 1
+#define USE_ANAGLYPH 0
 #define USE_MONO 0 
 
 #define TRACKING_ENABLED 1
@@ -93,10 +94,13 @@ void mouse_button(gua::utils::Trackball& trackball,
   trackball.mouse(button, state, trackball.posx(), trackball.posy());
 }
 ////golbal variables
+bool moves_positive_z = false;
+bool moves_negative_z = false;
 bool moves_positive_y = false;
 bool moves_negative_y = false;
 bool moves_positive_x = false;
 bool moves_negative_x = false;
+bool reset_position = false;
 
 bool use_toon_resolve_pass = false; 
 bool apply_bilateral_filter = false;
@@ -124,7 +128,7 @@ float screen_rotation_x = -12.46f;
 float screen_rotation_y = -90.0f;
 float screen_rotation_z = 0.0f;
 
-//float eye_dist;
+float eye_dist = 0.06;
 float glass_eye_offset = 0.03f;
 
 int   window_width = 2560;
@@ -136,7 +140,7 @@ void rebuild_pipe(gua::PipelineDescription& pipe) {
   pipe.clear();
   pipe.add_pass(std::make_shared<gua::TriMeshPassDescription>());
   pipe.add_pass(std::make_shared<gua::PLodPassDescription>());
- // pipe.add_pass(std::make_shared<gua::SkeletalAnimationPassDescription>()); 
+ //pipe.add_pass(std::make_shared<gua::SkeletalAnimationPassDescription>()); 
   pipe.add_pass(std::make_shared<gua::LightVisibilityPassDescription>());
 
 
@@ -176,6 +180,7 @@ void key_press(gua::PipelineDescription& pipe, gua::SceneGraph& graph, int key, 
   
   bool movement_predicate = false;
 
+
   if( action != 0 ) {
     movement_predicate = true;
   } 
@@ -194,6 +199,19 @@ void key_press(gua::PipelineDescription& pipe, gua::SceneGraph& graph, int key, 
 
   if(85 == scancode) {
     moves_positive_x = movement_predicate;
+  }
+
+  if(79 == scancode) {
+    moves_negative_z = movement_predicate;
+  }
+
+  if(81 == scancode) {
+    moves_positive_z = movement_predicate;
+  }
+
+  //postion reset on 0 pressed
+  if(90 == scancode){
+    reset_position = true; 
   }
  
   if (action == 0) return;
@@ -339,40 +357,41 @@ int main(int argc, char** argv) {
           gua::TriMeshLoader::NORMALIZE_SCALE));
 
   //---Sponsa---
-  auto scene_node(trimesh_loader.create_geometry_from_file("sponsa", "/home/vajo3185/Modified_Sponza/sponza.obj", gua::TriMeshLoader::NORMALIZE_POSITION /*|  gua::TriMeshLoader::NORMALIZE_SCALE*/ | 
-                    gua::TriMeshLoader::LOAD_MATERIALS ));
-
-
-  //---teapod----
-  /*auto teapot(trimesh_loader.create_geometry_from_file(
+  auto scene_node(trimesh_loader.create_geometry_from_file("sponsa", "/home/vajo3185/Modified_Sponza/sponza.obj", gua::TriMeshLoader::NORMALIZE_POSITION |  gua::TriMeshLoader::NORMALIZE_SCALE | 
+                  gua::TriMeshLoader::LOAD_MATERIALS ));
+  auto test_cube_node(trimesh_loader.create_geometry_from_file("cube", "./data/objects/colored_cube.obj", gua::TriMeshLoader::NORMALIZE_POSITION));
+  
+  //---teapot----
+  auto teapot(trimesh_loader.create_geometry_from_file(
       "teapot", "data/objects/teapot.obj",
       gua::TriMeshLoader::NORMALIZE_POSITION |
-          gua::TriMeshLoader::NORMALIZE_SCALE));*/
+          gua::TriMeshLoader::NORMALIZE_SCALE));
 
+  //---cat----
    auto kotka_node(trimesh_loader.create_geometry_from_file(
                     "cat", "/home/vajo3185/cat/cat.obj",
                     gua::TriMeshLoader::NORMALIZE_POSITION |
                     gua::TriMeshLoader::NORMALIZE_SCALE | 
-                    gua::TriMeshLoader::LOAD_MATERIALS 
-                    ));   
+                    gua::TriMeshLoader::LOAD_MATERIALS)); 
 
+   //---light ball----
    auto sphere(trimesh_loader.create_geometry_from_file(
                 "icosphere", "data/objects/icosphere.obj", 
                 gua::TriMeshLoader::NORMALIZE_POSITION |
                 gua::TriMeshLoader::NORMALIZE_SCALE));   
 
   //---character---    
-  auto teapot(loader.create_geometry_from_file("teapot", "/opt/project_animation/Assets/HeroTPP.FBX",
+  auto character(loader.create_geometry_from_file("character", "/opt/project_animation/Assets/HeroTPP.FBX",
                        mat1, 
                        gua::SkeletalAnimationLoader::NORMALIZE_POSITION | 
                        gua::SkeletalAnimationLoader::NORMALIZE_SCALE)); 
 
 
-  teapot->set_transform(scm::math::make_translation(1.0, 0.0, 0.0)*scm::math::make_rotation(-90.0, 1.0, 0.0, 0.0) * teapot->get_transform());
-  teapot->add_animations("/opt/project_animation/Assets/Walk.FBX", "walk");
-  teapot->set_animation_1("walk");
+  character->set_transform(scm::math::make_translation(1.0, 0.0, 0.0)*scm::math::make_rotation(-90.0, 1.0, 0.0, 0.0) * character->get_transform());
+  character->add_animations("/opt/project_animation/Assets/Walk.FBX", "walk");
+  character->set_animation_1("walk");
   // play only anim nr. 1
-  teapot->set_blend_factor(0);
+  character->set_blend_factor(0);
 
 
   auto lod_rough = lod_keep_color_shader->make_new_material();
@@ -389,20 +408,33 @@ int main(int argc, char** argv) {
                                                    gua::LodLoader::NORMALIZE_POSITION);
 
    snail_node->set_transform(scm::math::make_scale(5.0, 5.0,5.0));
-   kotka_node->set_transform(scm::math::make_translation(-80.0, -660.0, -70.0)*scm::math::make_rotation(65.0, 0.0, 1.0, 0.0)*scm::math::make_scale(150.0, 150.0, 150.0));
+   //kotka_node->set_transform(scm::math::make_translation(-80.0, -660.0, -70.0)*scm::math::make_rotation(65.0, 0.0, 1.0, 0.0)*scm::math::make_scale(150.0, 150.0, 150.0));
+   kotka_node->set_transform(scm::math::make_translation(2.0, 0.0, 0.0));
    plod_node->set_radius_scale(1.3f);
+   test_cube_node->scale(0.05f);
 
+   #if USE_SIDE_BY_SIDE
+    scene_node->scale(95.0f);
+    //scene_node->translate(screen_offset_x, screen_offset_y, screen_offset_z);
+    //scene_node->translate(0, 0, -0.6);
+    //test_cube_node->translate(screen_offset_x, screen_offset_y, screen_offset_z);
+    //test_cube_node->translate(0, 0, -0.6);
+   #endif
 
-  graph.add_node("/transform", scene_node);  
-  graph.add_node("/transform", plod_node);
+  graph.add_node("/transform", scene_node);
+  //graph.add_node("/transform", teapot);
+  graph.add_node("/transform", test_cube_node);  
+  //graph.add_node("/transform", plod_node);
   graph.add_node("/transform", kotka_node);
-  teapot->set_draw_bounding_box(true);
+
+  //teapot->set_draw_bounding_box(true); //tmp
 
 
   auto light2 = graph.add_node<gua::node::LightNode>("/", "light2");
   light2->data.set_type(gua::node::LightNode::Type::POINT);
   light2->data.brightness = 1500000.0f;
-  light2->scale(800.f);
+  //light2->scale(800.f);
+  light2->scale(10.f); //tmp
   light2->translate(-3.f, 5.f, 5.f);
   //graph.add_node("/light2", sphere);
 
@@ -432,46 +464,41 @@ int main(int argc, char** argv) {
 
   auto navigation = graph.add_node<gua::node::TransformNode>("/", "navigation");
   auto screen = graph.add_node<gua::node::ScreenNode>("/navigation", "screen");
+  graph.add_node("/navigation/screen", test_cube_node);
   
-
   //physical size of output viewport
 
   #if USE_ASUS_3D_WORKSTATION
   screen->data.set_size(gua::math::vec2(0.598f, 0.336f));
-  //screen->translate(0, 0, 1.0);
+  screen->translate(0, 0, -0.6);
   #else
-  screen->data.set_size(gua::math::vec2(0.40f, 0.20f));
-  screen->translate(0, 0, 1.0);
+  //screen->data.set_size(gua::math::vec2(0.40f, 0.20f));
+  screen->translate(0, 0, -0.6);
+  //screen->translate(0, 0, 1.0);
   #endif
   
   #if USE_SIDE_BY_SIDE
   screen->data.set_size(gua::math::vec2(screen_width, screen_height));
   screen->rotate(screen_rotation_x, 1, 0, 0);
   screen->rotate(screen_rotation_y, 0, 1, 0);
-  screen->rotate(screen_rotation_z, 0, 0, 1);
+  //screen->rotate(screen_rotation_z, 0, 0, 1);
   screen->translate(screen_offset_x, screen_offset_y, screen_offset_z);
-  #endif
-
-
-
-  #if USE_SIDE_BY_SIDE
-  //auto navigation_eye_offset = graph.add_node<gua::node::TransformNode>("/navigation", "eye_offset");
-  //navigation_eye_offset->translate(0, 0, glass_eye_offset);
-  //auto camera = graph.add_node<gua::node::CameraNode>("/navigation/eye_offset", "cam");
-  //camera->translate(screen_offset_x, screen_offset_y, screen_offset_z);
-  auto camera = graph.add_node<gua::node::CameraNode>("/navigation/screen", "cam");  
-  camera->translate(0.0, 0.0, glass_eye_offset);
+  
+  auto navigation_eye_offset = graph.add_node<gua::node::TransformNode>("/navigation", "eye_offset");
+  auto camera = graph.add_node<gua::node::CameraNode>("/navigation/eye_offset", "cam");
+  navigation_eye_offset->translate(0, 0, glass_eye_offset);
+  camera->translate(screen_offset_x, screen_offset_y, screen_offset_z);
   #else
   auto camera = graph.add_node<gua::node::CameraNode>("/navigation/screen", "cam");
+  camera->translate(0.0, 0.0, 2.6);
   #endif
-  camera->translate(0.0, 0.0, 2.0);
   camera->config.set_resolution(resolution);
   camera->config.set_screen_path("/navigation/screen");
   camera->config.set_scene_graph_name("main_scenegraph");
   camera->config.set_output_window_name("main_window");
   camera->config.set_near_clip(0.1);
   camera->config.set_far_clip(3000.0);
-
+  camera->config.set_eye_dist(eye_dist);
 
   
   #if USE_MONO 
@@ -483,9 +510,7 @@ int main(int argc, char** argv) {
   // add mouse interaction
   gua::utils::Trackball trackball(0.1, 0.02, 0.02);
 
- // camera->get_pipeline_description()->get_resolve_pass()->tone_mapping_exposure(
-  //  1.0f);
-
+ // camera->get_pipeline_description()->get_resolve_pass()->tone_mapping_exposure(1.0f);
 
   auto pipe = std::make_shared<gua::PipelineDescription>();
   rebuild_pipe(*pipe);
@@ -497,11 +522,11 @@ int main(int argc, char** argv) {
   #else
   auto window = std::make_shared<gua::GlfwWindow>();
 
-  window->on_resize.connect([&](gua::math::vec2ui const& new_size) {
+  /*window->on_resize.connect([&](gua::math::vec2ui const& new_size) {
     window->config.set_resolution(new_size);
     camera->config.set_resolution(new_size);
     screen->data.set_size(gua::math::vec2(0.001 * new_size.x, 0.001 * new_size.y));
-  });
+  });*/
 
   window->on_move_cursor.connect(
       [&](gua::math::vec2 const& pos) { trackball.motion(pos.x, pos.y); });
@@ -524,10 +549,6 @@ int main(int argc, char** argv) {
 
   window->config.set_enable_vsync(false);
   window->config.set_size(resolution);
-
-  
-
-
   window->config.set_resolution(resolution);
 
   #if USE_QUAD_BUFFERED
@@ -575,8 +596,6 @@ int main(int argc, char** argv) {
     });
   #endif
 
-
-
   gua::Renderer renderer;
 
   // application loop
@@ -591,35 +610,28 @@ int main(int argc, char** argv) {
   double current_scaling = 1.0;
   ticker.on_tick.connect([&]() {
 
-
+    #if USE_SIDE_BY_SIDE
+    double amount = 1.0 / 65.0; 
+    #else
     double amount = 1.0 / 5.0;
+    #endif
 
-    if( moves_negative_y ) 
-      navigation->translate(0.0, amount, 0.0);
-    if( moves_positive_y ) 
-      navigation->translate(0.0, -amount, 0.0);
-
-  
-    if( moves_positive_x ) 
-      navigation->translate(0.0, 0.0, -amount);
-    if( moves_negative_x ) 
-      navigation->translate(0.0, 0.0,  amount);
 
     gua::math::mat4 camera_transl_mat = navigation-> get_transform();
     
     // set time variable for animation
     i += 1.0 / 600.0;
     if (i > 1) i = 0;
-    teapot->set_time_1(i);
+    character->set_time_1(i);
 
     // apply trackball matrix to object
 
-    #if USE_QUAD_BUFFERED
+    /*#if USE_QUAD_BUFFERED
     gua::math::mat4 modelmatrix =  scm::math::make_rotation(++passed_frames/90.0, 0.0, 1.0, 0.0 );
-    #else
+    #else*/
     gua::math::mat4 modelmatrix = scm::math::make_translation(trackball.shiftx(), trackball.shifty(),trackball.distance()) *
                                   gua::math::mat4(trackball.rotation());
-    #endif
+    //#endif
 
      gua::math::mat4 inverse_modelview_matrix = scm::math::inverse(modelmatrix);                             
 
@@ -630,13 +642,52 @@ int main(int argc, char** argv) {
      plod_node->set_transform( trans_mat*rot_mat_y*rot_mat_x* scale_mat *  default_node_transform);
 
 
+    #if !USE_SIDE_BY_SIDE 
+    transform->set_transform(scm::math::make_translation(0.0, 0.0, -3.0)  * 
+                             modelmatrix *  
+                             scm::math::make_rotation(-90.0, 0.0, 1.0, 0.0) * 
+                             scm::math::make_scale(0.4, 0.4, 0.4));
+    #endif
 
-    transform->set_transform(scm::math::make_translation(0.0, 0.0, 2.0)  *modelmatrix *  scm::math::make_rotation(-90.0, 0.0, 1.0, 0.0)* scm::math::make_scale(0.4, 0.4, 0.4));
+    //transform->set_transform(modelmatrix * scm::math::make_rotation(-180.0, 0.0, 1.0, 0.0));
+    gua::math::mat4 current_nav_transform = navigation->get_transform();
+    
+    if(reset_position){
+      navigation->set_transform(gua::math::mat4::identity());
+      trackball.reset();
+      reset_position = false;
+    }
+    if( moves_negative_y ) 
+      navigation->translate(0.0, amount, 0.0);
+    if( moves_positive_y ) 
+      navigation->translate(0.0, -amount, 0.0);
+  
+    if( moves_positive_z ) 
+      navigation->translate(0.0, 0.0, -amount);
+    if( moves_negative_z ) 
+      navigation->translate(0.0, 0.0,  amount);
+
+    if( moves_positive_x ) 
+      navigation->translate(-amount, 0.0, 0.0);
+    if( moves_negative_x ) 
+      navigation->translate(amount, 0.0, 0.0);
+    if(!moves_negative_x && !moves_positive_x && 
+       !moves_negative_z && !moves_positive_z && 
+       !moves_negative_y && !moves_positive_y ){
+        gua::math::mat4 current_nav_transformation = navigation->get_transform();
+        navigation->set_transform(modelmatrix);
+        auto current_translation_mat = gua::math::get_translation(current_nav_transformation);
+        auto current_translation_mat_from_trackball = gua::math::get_translation(modelmatrix);
+        navigation->translate(-current_translation_mat_from_trackball); 
+        navigation->translate(current_translation_mat); 
+    }
+
     //navigation->set_transform(inverse_modelview_matrix); 
     //gua::math::mat4 plod_node_trasnformations = plod_node->get_trasform();
     
     #if (USE_SIDE_BY_SIDE && TRACKING_ENABLED)
-    navigation->set_transform(current_tracking_matrix);
+    camera->set_transform(current_tracking_matrix);
+
     #endif 
 
     if (window->should_close()) {
