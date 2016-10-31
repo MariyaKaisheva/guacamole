@@ -13,7 +13,13 @@ uniform bool apply_outline;
 // output
 layout(location=0) out vec3 gua_out_color;
 
-
+//TODO find a way to check if lineraziation unction works
+//currently when applied to outline detection nothing is detected
+float get_linearized_depth(vec2 frag_pos){
+  float lin_depth = (2*gua_clip_near)/(gua_clip_far + gua_clip_near - gua_get_unscaled_depth(frag_pos)*(gua_clip_far - gua_clip_near)); 
+  lin_depth = lin_depth*(gua_clip_far); //range shift
+  return lin_depth;
+}
 
 void main() {
 
@@ -46,51 +52,51 @@ void main() {
       vec2 tmp_texcoord = vec2( (gl_FragCoord.x + r) / gua_resolution.x, 
                                 (gl_FragCoord.y + c) / gua_resolution.y );
 
-      accumulated_color_x += sobel_x[r +1][c +1]*gua_get_normal(tmp_texcoord); //for toon shading also color_map look up gives good results
-      accumulated_color_y += sobel_y[r +1][c +1]*gua_get_normal(tmp_texcoord);
-
+      accumulated_color_x += sobel_x[r +1][c +1]* get_linearized_depth(tmp_texcoord); /* gua_get_normal(tmp_texcoord); /*gua_get_depth(tmp_texcoord);*/  //for toon shading also color_map look up gives good results
+      accumulated_color_y += sobel_y[r +1][c +1]* get_linearized_depth(tmp_texcoord); /* gua_get_normal(tmp_texcoord); /*gua_get_depth(tmp_texcoord);*/
     }
   }
-  
 
   vec3 edge_color = vec3(sqrt(pow(accumulated_color_x.x, 2) + pow(accumulated_color_y.x, 2)), 
                          sqrt(pow(accumulated_color_x.y, 2) + pow(accumulated_color_y.y, 2)), 
                          sqrt(pow(accumulated_color_x.z, 2) + pow(accumulated_color_y.z, 2)));
 
 
-  float depth = gua_get_depth(); 
-  
-  if(depth < 1)//check for background
-  { 
-
-    if(halftoning && dot(edge_color, vec3(1) ) < 2.8){
-
-          float gray = color.x* 0.2126 + color.y* 0.7152 + color.z* 0.0722;
-          vec3 gray_color = vec3(gray, gray, gray);
-          int x = int(mod(gl_FragCoord.x, 3));
-          int y = int(mod(gl_FragCoord.y, 3)); 
-          gray_color = gray_color + gray_color*(dither_mat[x][y]);
-      
-          if (gray_color.x < dither_mat[x][y]){ 
-              gray_color = (floor(gua_get_color(texcoord).xyz*10))/10.0;
-          }
-          else {
-              gray_color = (ceil(gua_get_color(texcoord).xyz*10.0))/10.0;
-          }
-          gua_out_color = gray_color;
+  float depth = get_linearized_depth(texcoord); 
+  float outline_treshhold = 0.3; //TODO meaning of the value?! 
+  if(depth < gua_clip_far){ //check for background
+    if(halftoning && dot(edge_color, vec3(1) ) < outline_treshhold) {
+      float gray = color.x* 0.2126 + color.y* 0.7152 + color.z* 0.0722;
+      vec3 gray_color = vec3(gray, gray, gray);
+      int x = int(mod(gl_FragCoord.x, 3));
+      int y = int(mod(gl_FragCoord.y, 3)); 
+      gray_color = gray_color + gray_color*(dither_mat[x][y]);
+      if (gray_color.x < dither_mat[x][y]) { 
+        gray_color = (floor(gua_get_color(texcoord).xyz*10))/10.0;
       }
-    else{
-      if(apply_outline && dot(edge_color, vec3(1) ) >= 2.8){
+      else {
+        gray_color = (ceil(gua_get_color(texcoord).xyz*10.0))/10.0;
+      }
+      gua_out_color = gray_color;
+    }
+    else {
+      if(apply_outline && dot(edge_color, vec3(1) ) >= outline_treshhold) {
         gua_out_color = vec3(0.0, 0.0, 0.0); //outline color 
       }
       else{
         gua_out_color = gua_get_color(texcoord); //no halftoning; no outline applied
-      }  
-        
-    } 
-       
-  } 
-else { gua_out_color = vec3(0.25, 0.2, 0.3);} //background color 
+      }    
+    }
+
+    /*if( get_linearized_depth(texcoord)  < 1 ) {
+      gua_out_color = vec3(1.0, 0.0, 0.0);
+    } else {
+      gua_out_color = vec3(0.0, 1.0, 0.0);      
+    }*/
+}
+else {//background color 
+ gua_out_color = vec3(0.25, 0.2, 0.3);
+} 
 
 
 }

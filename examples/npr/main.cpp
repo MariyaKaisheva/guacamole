@@ -30,6 +30,7 @@
 #include <gua/renderer/TriMeshLoader.hpp>
 #include <gua/renderer/ToneMappingPass.hpp>
 #include <gua/renderer/DebugViewPass.hpp>
+#include <gua/renderer/SSAAPass.hpp>
 #include <gua/renderer/ToonResolvePass.hpp> 
 #include <gua/renderer/NprOutlinePass.hpp>
 #include <gua/renderer/NPREffectPass.hpp>
@@ -49,15 +50,15 @@
 
 #include <gua/renderer/PBSMaterialFactory.hpp> 
 
-#define USE_ASUS_3D_WORKSTATION 1
+//#define USE_ASUS_3D_WORKSTATION 1
 #define USE_LOW_RES_WORKSTATION 0
 
-#define USE_QUAD_BUFFERED 0//seems to not work anymore
+//#define USE_QUAD_BUFFERED 0//seems to not work anymore
 #define USE_SIDE_BY_SIDE 1
 #define USE_ANAGLYPH 0
 #define USE_MONO 0 
 
-#define TRACKING_ENABLED 1
+#define TRACKING_ENABLED 0
 
 #define USE_TOON_RESOLVE_PASS 0
 
@@ -93,6 +94,7 @@ void mouse_button(gua::utils::Trackball& trackball,
 
   trackball.mouse(button, state, trackball.posx(), trackball.posy());
 }
+
 ////golbal variables
 bool moves_positive_z = false;
 bool moves_negative_z = false;
@@ -108,9 +110,9 @@ bool apply_halftoning_effect = false;
 bool create_screenspace_outlines = false; 
 int thickness = 0;
 //int brightness_factor = 1;
-int max_thickness = 15; //confusing name 
-int min_thickness = 0; //confusing name 
-float sigma_d = 0.1; //not used currently
+int max = 15; //max num applications of Bilateral filter
+int min = 0; //min num applications of Bilateral filter
+//float sigma_d = 0.1; //not used currently
 
 int num_screenspace_passes = 1;
 
@@ -169,8 +171,10 @@ void rebuild_pipe(gua::PipelineDescription& pipe) {
 
   //pipe.add_pass(std::make_shared<gua::NprOutlinePassDescription>());
   //pipe.add_pass(std::make_shared<gua::DebugViewPassDescription>());
+  pipe.add_pass(std::make_shared<gua::SSAAPassDescription>());
 
 }
+////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 //key-board interacions 
 void key_press(gua::PipelineDescription& pipe, gua::SceneGraph& graph, int key, int scancode, int action, int mods)
@@ -209,9 +213,21 @@ void key_press(gua::PipelineDescription& pipe, gua::SceneGraph& graph, int key, 
     moves_positive_z = movement_predicate;
   }
 
-  //postion reset on 0 pressed
-  if(90 == scancode){
-    reset_position = true; 
+  
+  if(90 == scancode){ //Numpad 0 pressed
+    reset_position = true;
+     // graph["/navigation/screen"]->get_tags().remove_tag("invisible");
+  }
+
+  if(82 == scancode){ // Numpad -
+    //graph["/navigation/screen"]->get_tags().add_tag("invisible");
+
+    if(!graph["/navigation/screen"]->get_tags().has_tag("invisible")){
+      graph["/navigation/screen"]->get_tags().add_tag("invisible");
+    }
+    else{
+      graph["/navigation/screen"]->get_tags().remove_tag("invisible");
+    } 
   }
  
   if (action == 0) return;
@@ -226,8 +242,8 @@ void key_press(gua::PipelineDescription& pipe, gua::SceneGraph& graph, int key, 
     break;  
     
     //line thickness
-    case 'w':      
-      if(thickness < max_thickness && apply_bilateral_filter) {
+    case 'w':
+      if(thickness < max && apply_bilateral_filter) {
         ++thickness;
         /*++brightness_factor;
         pipe.get_toon_resolve_pass()->set_brightness_fact(brightness_factor); */
@@ -236,7 +252,7 @@ void key_press(gua::PipelineDescription& pipe, gua::SceneGraph& graph, int key, 
     break;   
 
     case 's':   
-      if(thickness > min_thickness && apply_bilateral_filter) {
+      if(thickness > min && apply_bilateral_filter) {
         --thickness;
         pipe.get_npr_pass()->line_thickness(thickness);
       }
@@ -289,20 +305,20 @@ void key_press(gua::PipelineDescription& pipe, gua::SceneGraph& graph, int key, 
     //halftoning mode - screenspace pass
     case 'h':
       apply_halftoning_effect = !apply_halftoning_effect;
-      rebuild_pipe(pipe);      
+      rebuild_pipe(pipe);
     break;
 
     //toogle outlines - screenspace pass
     case 'l':
       create_screenspace_outlines = !create_screenspace_outlines;
-      rebuild_pipe(pipe);      
+      rebuild_pipe(pipe);
     break;
   
    default:
-    break;   
+    break;
   }
 }
-
+///////////////////////////////////////////////////////////////////////////////////////////////////////
 int main(int argc, char** argv) {
   // initialize guacamole
   gua::init(argc, argv);
@@ -318,6 +334,7 @@ int main(int argc, char** argv) {
   lod_loader.set_upload_budget_in_mb(20);
 
   auto transform = graph.add_node<gua::node::TransformNode>("/", "transform");
+  auto plod_transform = graph.add_node<gua::node::TransformNode>("/transform", "plod_transform");
 
 
   //materials///////////////
@@ -350,16 +367,16 @@ int main(int argc, char** argv) {
   //add geometry/////////////
 
   //---snail----
-  auto snail_node(trimesh_loader.create_geometry_from_file(
-     "teapot", "data/objects/ohluvka.obj",
+  auto snail(trimesh_loader.create_geometry_from_file(
+     "snail", "data/objects/ohluvka.obj",
       snail_material,
       gua::TriMeshLoader::NORMALIZE_POSITION |
           gua::TriMeshLoader::NORMALIZE_SCALE));
 
   //---Sponsa---
-  auto scene_node(trimesh_loader.create_geometry_from_file("sponsa", "/home/vajo3185/Modified_Sponza/sponza.obj", gua::TriMeshLoader::NORMALIZE_POSITION |  gua::TriMeshLoader::NORMALIZE_SCALE | 
+  auto sponza(trimesh_loader.create_geometry_from_file("sponza", "/home/vajo3185/More_Modified_Sponza_/sponza.obj", gua::TriMeshLoader::NORMALIZE_POSITION |  gua::TriMeshLoader::NORMALIZE_SCALE | 
                   gua::TriMeshLoader::LOAD_MATERIALS ));
-  auto test_cube_node(trimesh_loader.create_geometry_from_file("cube", "./data/objects/colored_cube.obj", gua::TriMeshLoader::NORMALIZE_POSITION));
+  auto test_cube(trimesh_loader.create_geometry_from_file("cube", "./data/colored_cube/colored_cube.obj", gua::TriMeshLoader::NORMALIZE_POSITION | gua::TriMeshLoader::LOAD_MATERIALS));
   
   //---teapot----
   auto teapot(trimesh_loader.create_geometry_from_file(
@@ -368,7 +385,7 @@ int main(int argc, char** argv) {
           gua::TriMeshLoader::NORMALIZE_SCALE));
 
   //---cat----
-   auto kotka_node(trimesh_loader.create_geometry_from_file(
+   auto cat(trimesh_loader.create_geometry_from_file(
                     "cat", "/home/vajo3185/cat/cat.obj",
                     gua::TriMeshLoader::NORMALIZE_POSITION |
                     gua::TriMeshLoader::NORMALIZE_SCALE | 
@@ -401,49 +418,104 @@ int main(int argc, char** argv) {
 
 
    //---point cloud---   
-   auto plod_node = lod_loader.load_lod_pointcloud("pointcloud",
+   auto plod_head = lod_loader.load_lod_pointcloud("pointcloud_head",
                                                    "/mnt/pitoti/hallermann_scans/bruecke2/kopf_local.bvh",
                                                   //"/mnt/pitoti/hallermann_scans/Schiefer_Turm_part_200M_00001_knobi.bvh",
                                                    lod_rough,
                                                    gua::LodLoader::NORMALIZE_POSITION);
 
-   snail_node->set_transform(scm::math::make_scale(5.0, 5.0,5.0));
-   //kotka_node->set_transform(scm::math::make_translation(-80.0, -660.0, -70.0)*scm::math::make_rotation(65.0, 0.0, 1.0, 0.0)*scm::math::make_scale(150.0, 150.0, 150.0));
-   kotka_node->set_transform(scm::math::make_translation(2.0, 0.0, 0.0));
-   plod_node->set_radius_scale(1.3f);
-   test_cube_node->scale(0.05f);
+    auto plod_tower = lod_loader.load_lod_pointcloud("pointcloud_tower",
+                                                   // "/mnt/pitoti/hallermann_scans/Schiefer_Turm_part_200M_00001_knobi.bvh",
+                                                     "/mnt/pitoti/hallermann_scans/Modell_Ruine/Pointcloud_Ruine_xyz_parts_00001.bvh",
+                                                       lod_rough);
+    auto plod_tower_2 = lod_loader.load_lod_pointcloud("pointcloud_tower",
+                                                      //"/mnt/pitoti/hallermann_scans/Schiefer_Turm_part_200M_00002_knobi.bvh",
+                                                        "/mnt/pitoti/hallermann_scans/Modell_Ruine/Pointcloud_Ruine_xyz_parts_00002.bvh",
+                                                       lod_rough);
+    auto plod_tower_3 = lod_loader.load_lod_pointcloud("pointcloud_tower",
+                                                      // "/mnt/pitoti/hallermann_scans/Schiefer_Turm_part_200M_00003_knobi.bvh",
+                                                        "/mnt/pitoti/hallermann_scans/Modell_Ruine/Pointcloud_Ruine_xyz_parts_00003.bvh",
+                                                       lod_rough);
+    auto plod_tower_4 = lod_loader.load_lod_pointcloud("pointcloud_tower",
+                                                      //"/mnt/pitoti/hallermann_scans/Schiefer_Turm_part_200M_00004_knobi.bvh",
+                                                        "/mnt/pitoti/hallermann_scans/Modell_Ruine/Pointcloud_Ruine_xyz_parts_00004.bvh",
+                                                       lod_rough);
+    auto plod_tower_5 = lod_loader.load_lod_pointcloud("pointcloud_tower",
+                                                     // "/mnt/pitoti/hallermann_scans/Schiefer_Turm_part_200M_00005_knobi.bvh",
+                                                        "/mnt/pitoti/hallermann_scans/Modell_Ruine/Pointcloud_Ruine_xyz_parts_00005.bvh",
+                                                       lod_rough);
+    auto plod_tower_6 = lod_loader.load_lod_pointcloud("pointcloud_tower",
+                                                      //"/mnt/pitoti/hallermann_scans/Schiefer_Turm_part_200M_00006_knobi.bvh",
+                                                        "/mnt/pitoti/hallermann_scans/Modell_Ruine/Pointcloud_Ruine_xyz_parts_00006.bvh",
+                                                       lod_rough);
+    auto plod_tower_7 = lod_loader.load_lod_pointcloud("pointcloud_tower",
+                                                      //"/mnt/pitoti/hallermann_scans/Schiefer_Turm_part_200M_00007_knobi.bvh",
+                                                        "/mnt/pitoti/hallermann_scans/Modell_Ruine/Pointcloud_Ruine_xyz_parts_00007.bvh",
+                                                       lod_rough);                                                                                              
+    auto plod_tower_8 = lod_loader.load_lod_pointcloud("pointcloud_tower",
+                                                      //"/mnt/pitoti/hallermann_scans/Schiefer_Turm_part_200M_00008_knobi.bvh",
+                                                        "/mnt/pitoti/hallermann_scans/Modell_Ruine/Pointcloud_Ruine_xyz_parts_00008.bvh",
+                                                       lod_rough);
+
+
+   snail->set_transform(scm::math::make_scale(5.0, 5.0,5.0));
+   //cat->set_transform(scm::math::make_translation(-80.0, -660.0, -70.0)*scm::math::make_rotation(65.0, 0.0, 1.0, 0.0)*scm::math::make_scale(150.0, 150.0, 150.0));
+   cat->set_transform(scm::math::make_translation(2.0, 0.0, 0.0));
+   plod_transform->rotate(-180, 1.0, 0.0, 0.0);
+   plod_transform->rotate(-90, 0.0, 1.0, 0.0);
+   plod_transform->translate(screen_offset_x, screen_offset_y, screen_offset_z);
+   plod_transform->translate(0.0, 12.0, 0.0);
+   //plod_transform->scale(0.15);
+   float scale_value = 0.7f;
+   plod_head->set_radius_scale(scale_value);
+   plod_tower->set_radius_scale(scale_value);
+   plod_tower_2->set_radius_scale(scale_value);
+   plod_tower_3->set_radius_scale(scale_value);
+   plod_tower_4->set_radius_scale(scale_value);
+   plod_tower_5->set_radius_scale(scale_value);
+   plod_tower_6->set_radius_scale(scale_value);
+   plod_tower_7->set_radius_scale(scale_value);
+   plod_tower_8->set_radius_scale(scale_value);
+   test_cube->scale(0.05f);
 
    #if USE_SIDE_BY_SIDE
-    scene_node->scale(95.0f);
-    //scene_node->translate(screen_offset_x, screen_offset_y, screen_offset_z);
-    //scene_node->translate(0, 0, -0.6);
-    //test_cube_node->translate(screen_offset_x, screen_offset_y, screen_offset_z);
-    //test_cube_node->translate(0, 0, -0.6);
+    sponza->scale(8.0f);
+    sponza->rotate(180, 0, 1, 0);
+    sponza->translate(screen_offset_x, screen_offset_y, screen_offset_z);
+    sphere->scale(0.05);
    #endif
 
-  graph.add_node("/transform", scene_node);
+  graph.add_node("/transform", sponza);
   //graph.add_node("/transform", teapot);
-  graph.add_node("/transform", test_cube_node);  
-  //graph.add_node("/transform", plod_node);
-  graph.add_node("/transform", kotka_node);
+  //graph.add_node("/transform", plod_head);
+  /*graph.add_node("/transform/plod_transform", plod_tower);
+  graph.add_node("/transform/plod_transform", plod_tower_2);
+  graph.add_node("/transform/plod_transform", plod_tower_3);
+  graph.add_node("/transform/plod_transform", plod_tower_4);
+  graph.add_node("/transform/plod_transform", plod_tower_5);
+  graph.add_node("/transform/plod_transform", plod_tower_6);
+  graph.add_node("/transform/plod_transform", plod_tower_7);
+  graph.add_node("/transform/plod_transform", plod_tower_8);*/
 
-  //teapot->set_draw_bounding_box(true); //tmp
 
+  graph.add_node("/transform", cat);
+  //graph.add_node("/transform", sphere);
 
-  auto light2 = graph.add_node<gua::node::LightNode>("/", "light2");
+ /* auto light2 = graph.add_node<gua::node::LightNode>("/", "light2");
   light2->data.set_type(gua::node::LightNode::Type::POINT);
-  light2->data.brightness = 1500000.0f;
+  light2->data.brightness = 1500.0f;
+  light2->data.color = gua::utils::Color3f(0.0, 1.0, 0.5);
   //light2->scale(800.f);
-  light2->scale(10.f); //tmp
-  light2->translate(-3.f, 5.f, 5.f);
-  //graph.add_node("/light2", sphere);
+  light2->scale(12.f); //tmp
+  light2->translate(-2.f, 5.f, 4.f);
+  graph.add_node("/light2", sphere);*/
 
   
   // setup rendering pipeline and window
 
   gua::math::vec2ui resolution;
 
-  #if USE_ASUS_3D_WORKSTATION
+  #if !USE_LOW_RES_WORKSTATION
   resolution = gua::math::vec2ui(2560, 1440);
   #else
   resolution = gua::math::vec2ui(1920, 1080);
@@ -455,40 +527,62 @@ int main(int argc, char** argv) {
     auto npr_resolve_pass = std::make_shared<gua::ToonResolvePassDescription>();
   #else
     auto npr_resolve_pass = std::make_shared<gua::ResolvePassDescription>();
-  npr_resolve_pass->background_mode(
+    npr_resolve_pass->background_mode(
       gua::ResolvePassDescription::BackgroundMode::QUAD_TEXTURE);
   #endif
-  npr_resolve_pass->tone_mapping_exposure(1.0f);
+  //npr_resolve_pass->tone_mapping_exposure(1.0f);
   auto npr_pass = std::make_shared<gua::NPREffectPassDescription>();
 
-
+  //////////////////////////////////
   auto navigation = graph.add_node<gua::node::TransformNode>("/", "navigation");
+  auto light_pointer = graph.add_node<gua::node::TransformNode>("/navigation", "light_pointer");
+  auto point_light = graph.add_node<gua::node::LightNode>("/navigation/light_pointer", "point_light");
+  point_light->data.set_type(gua::node::LightNode::Type::SUN);
+  point_light->data.brightness = 5.0f;
+  point_light->data.color = gua::utils::Color3f(0.0, 1.0, 0.5);
+  graph.add_node("/navigation/light_pointer", sphere);
+
+
+
   auto screen = graph.add_node<gua::node::ScreenNode>("/navigation", "screen");
-  graph.add_node("/navigation/screen", test_cube_node);
+  
+  //tmp for test needs
+  test_cube->rotate(45.0, 0.0, 1.0, 0.0);
+  graph.add_node("/navigation/screen", test_cube);
+  //graph.add_node("/navigation/screen", plod_transform);
+  /*graph.add_node("/navigation/screen", plod_tower_2);
+  graph.add_node("/navigation/screen", plod_tower_3);
+  graph.add_node("/navigation/screen", plod_tower_4);
+  graph.add_node("/navigation/screen", plod_tower_5);
+  graph.add_node("/navigation/screen", plod_tower_6);
+  graph.add_node("/navigation/screen", plod_tower_7);
+  graph.add_node("/navigation/screen", plod_tower_8);*/
+
   
   //physical size of output viewport
 
-  #if USE_ASUS_3D_WORKSTATION
+  /*#if USE_ASUS_3D_WORKSTATION
   screen->data.set_size(gua::math::vec2(0.598f, 0.336f));
   screen->translate(0, 0, -0.6);
   #else
   //screen->data.set_size(gua::math::vec2(0.40f, 0.20f));
   screen->translate(0, 0, -0.6);
   //screen->translate(0, 0, 1.0);
-  #endif
-  
-  #if USE_SIDE_BY_SIDE
-  screen->data.set_size(gua::math::vec2(screen_width, screen_height));
+  #endif*/
+
+
+  screen->data.set_size(gua::math::vec2(screen_width, screen_height)); //TODO check dim for other screens
+  screen->translate(0, 0, -0.6);
+  #if USE_SIDE_BY_SIDE  
   screen->rotate(screen_rotation_x, 1, 0, 0);
   screen->rotate(screen_rotation_y, 0, 1, 0);
-  //screen->rotate(screen_rotation_z, 0, 0, 1);
   screen->translate(screen_offset_x, screen_offset_y, screen_offset_z);
-  
+
   auto navigation_eye_offset = graph.add_node<gua::node::TransformNode>("/navigation", "eye_offset");
   auto camera = graph.add_node<gua::node::CameraNode>("/navigation/eye_offset", "cam");
   navigation_eye_offset->translate(0, 0, glass_eye_offset);
   camera->translate(screen_offset_x, screen_offset_y, screen_offset_z);
-  #else
+  #else 
   auto camera = graph.add_node<gua::node::CameraNode>("/navigation/screen", "cam");
   camera->translate(0.0, 0.0, 2.6);
   #endif
@@ -499,6 +593,7 @@ int main(int argc, char** argv) {
   camera->config.set_near_clip(0.1);
   camera->config.set_far_clip(3000.0);
   camera->config.set_eye_dist(eye_dist);
+  camera->config.mask().blacklist.add_tag("invisible");
 
   
   #if USE_MONO 
@@ -508,25 +603,24 @@ int main(int argc, char** argv) {
   #endif
 
   // add mouse interaction
-  gua::utils::Trackball trackball(0.1, 0.02, 0.02);
-
- // camera->get_pipeline_description()->get_resolve_pass()->tone_mapping_exposure(1.0f);
+  gua::utils::Trackball trackball(0.1, 0.02, 0.02); 
 
   auto pipe = std::make_shared<gua::PipelineDescription>();
   rebuild_pipe(*pipe);
-
   camera->set_pipeline_description(pipe);
 
-  #if USE_QUAD_BUFFERED
+  /*#if USE_QUAD_BUFFERED
   auto window = std::make_shared<gua::Window>();
-  #else
+  #else*/
   auto window = std::make_shared<gua::GlfwWindow>();
 
-  /*window->on_resize.connect([&](gua::math::vec2ui const& new_size) {
+  #if !USE_SIDE_BY_SIDE
+  window->on_resize.connect([&](gua::math::vec2ui const& new_size) {
     window->config.set_resolution(new_size);
     camera->config.set_resolution(new_size);
     screen->data.set_size(gua::math::vec2(0.001 * new_size.x, 0.001 * new_size.y));
-  });*/
+  });
+  #endif
 
   window->on_move_cursor.connect(
       [&](gua::math::vec2 const& pos) { trackball.motion(pos.x, pos.y); });
@@ -541,12 +635,9 @@ int main(int argc, char** argv) {
     std::placeholders::_2,
     std::placeholders::_3,
     std::placeholders::_4));
-  #endif
-
+  //#endif
 
   gua::WindowDatabase::instance()->add("main_window", window);
-
-
   window->config.set_enable_vsync(false);
   window->config.set_size(resolution);
   window->config.set_resolution(resolution);
@@ -576,11 +667,13 @@ int main(int argc, char** argv) {
 
   //------------------tracking--------------------------
 
-  #if USE_SIDE_BY_SIDE
-    gua::math::mat4 current_tracking_matrix(gua::math::mat4::identity());
+  #if TRACKING_ENABLED
+    gua::math::mat4 current_cam_tracking_matrix(gua::math::mat4::identity());
+    gua::math::mat4 current_pointer_tracking_matrix(gua::math::mat4::identity());
     std::thread tracking_thread([&]() {
       scm::inp::tracker::target_container targets;
       targets.insert(scm::inp::tracker::target_container::value_type(5, scm::inp::target(5)));
+      targets.insert(scm::inp::tracker::target_container::value_type(17, scm::inp::target(17)));
 
       scm::inp::art_dtrack* dtrack(new scm::inp::art_dtrack(5000));
       if (!dtrack->initialize()) {
@@ -589,42 +682,47 @@ int main(int argc, char** argv) {
       }
       while (true) {
         dtrack->update(targets);
-        auto t = targets.find(5)->second.transform();
-        t[12] /= 1000.f; t[13] /= 1000.f; t[14] /= 1000.f;
-        current_tracking_matrix = t;
+        auto camera_target = targets.find(5)->second.transform();
+        camera_target[12] /= 1000.f; camera_target[13] /= 1000.f; camera_target[14] /= 1000.f;
+        auto pointer_target = targets.find(17)->second.transform();
+        pointer_target[12] /= 1000.f; pointer_target[13] /= 1000.f; pointer_target[14] /= 1000.f;
+        current_cam_tracking_matrix = camera_target;
+        current_pointer_tracking_matrix = pointer_target;
+
+        std::cout << current_cam_tracking_matrix << "\n";
       }
     });
   #endif
 
   gua::Renderer renderer;
 
-  // application loop
+  // application loop  ////////////////////////////////////////////
   gua::events::MainLoop loop;
   gua::events::Ticker ticker(loop, 1.0 / 500.0);
 
 
-  auto default_node_transform = plod_node->get_transform();
+  auto default_node_transform = plod_head->get_transform();
 
   unsigned passed_frames = 0;
   float i = 0; 
   double current_scaling = 1.0;
   ticker.on_tick.connect([&]() {
 
-    #if USE_SIDE_BY_SIDE
-    double amount = 1.0 / 65.0; 
-    #else
-    double amount = 1.0 / 5.0;
-    #endif
+  #if USE_SIDE_BY_SIDE
+  double amount = 1.0 / 195.0; 
+  #else
+  double amount = 1.0 / 65.0;
+  #endif
 
 
-    gua::math::mat4 camera_transl_mat = navigation-> get_transform();
+  gua::math::mat4 camera_transl_mat = navigation-> get_transform();
     
-    // set time variable for animation
-    i += 1.0 / 600.0;
-    if (i > 1) i = 0;
-    character->set_time_1(i);
+  // set time variable for animation
+  i += 1.0 / 600.0;
+  if (i > 1) i = 0;
+  character->set_time_1(i);
 
-    // apply trackball matrix to object
+  // apply trackball matrix to object
 
     /*#if USE_QUAD_BUFFERED
     gua::math::mat4 modelmatrix =  scm::math::make_rotation(++passed_frames/90.0, 0.0, 1.0, 0.0 );
@@ -639,55 +737,48 @@ int main(int argc, char** argv) {
      gua::math::mat4 rot_mat_x = scm::math::make_rotation(-90.0, 1.0, 0.0, 0.0);
      gua::math::mat4 rot_mat_y = scm::math::make_rotation(106.8, 0.0, 1.0, 0.0);
      gua::math::mat4 trans_mat = scm::math::make_translation(-1330.0, -15.0, -10.0);
-     plod_node->set_transform( trans_mat*rot_mat_y*rot_mat_x* scale_mat *  default_node_transform);
+     //plod_head->set_transform( trans_mat*rot_mat_y*rot_mat_x* scale_mat *  default_node_transform);
 
-
-    #if !USE_SIDE_BY_SIDE 
-    transform->set_transform(scm::math::make_translation(0.0, 0.0, -3.0)  * 
-                             modelmatrix *  
-                             scm::math::make_rotation(-90.0, 0.0, 1.0, 0.0) * 
-                             scm::math::make_scale(0.4, 0.4, 0.4));
-    #endif
-
-    //transform->set_transform(modelmatrix * scm::math::make_rotation(-180.0, 0.0, 1.0, 0.0));
-    gua::math::mat4 current_nav_transform = navigation->get_transform();
+  //sponza->set_transform(scm::math::make_rotation(-90.0, 0.0, 1.0, 0.0) *scm::math::make_scale(0.4, 0.4, 0.4));                           
+  gua::math::mat4 current_nav_transform = navigation->get_transform();
     
-    if(reset_position){
+  if(reset_position){
       navigation->set_transform(gua::math::mat4::identity());
+      transform->set_transform(gua::math::mat4::identity());
       trackball.reset();
       reset_position = false;
-    }
-    if( moves_negative_y ) 
-      navigation->translate(0.0, amount, 0.0);
-    if( moves_positive_y ) 
-      navigation->translate(0.0, -amount, 0.0);
-  
-    if( moves_positive_z ) 
-      navigation->translate(0.0, 0.0, -amount);
-    if( moves_negative_z ) 
-      navigation->translate(0.0, 0.0,  amount);
+  }
+  if( moves_negative_y ) 
+      transform->translate(0.0, amount, 0.0);
+  if( moves_positive_y ) 
+      transform->translate(0.0, -amount, 0.0);  
+  if( moves_positive_z ) 
+      transform->translate(0.0, 0.0, -amount);
+  if( moves_negative_z ) 
+      transform->translate(0.0, 0.0,  amount);
+  if( moves_positive_x ) 
+      transform->translate(-amount, 0.0, 0.0);
+  if( moves_negative_x ) 
+      transform->translate(amount, 0.0, 0.0);
 
-    if( moves_positive_x ) 
-      navigation->translate(-amount, 0.0, 0.0);
-    if( moves_negative_x ) 
-      navigation->translate(amount, 0.0, 0.0);
-    if(!moves_negative_x && !moves_positive_x && 
-       !moves_negative_z && !moves_positive_z && 
-       !moves_negative_y && !moves_positive_y ){
+  navigation->set_transform(modelmatrix);
+  /*if(!moves_negative_x && !moves_positive_x && 
+      !moves_negative_z && !moves_positive_z && 
+      !moves_negative_y && !moves_positive_y ){
         gua::math::mat4 current_nav_transformation = navigation->get_transform();
-        navigation->set_transform(modelmatrix);
         auto current_translation_mat = gua::math::get_translation(current_nav_transformation);
         auto current_translation_mat_from_trackball = gua::math::get_translation(modelmatrix);
+        navigation->set_transform(modelmatrix);
         navigation->translate(-current_translation_mat_from_trackball); 
         navigation->translate(current_translation_mat); 
-    }
+  }*/
 
     //navigation->set_transform(inverse_modelview_matrix); 
-    //gua::math::mat4 plod_node_trasnformations = plod_node->get_trasform();
+    //gua::math::mat4 plod_head_trasnformations = plod_head->get_trasform();
     
     #if (USE_SIDE_BY_SIDE && TRACKING_ENABLED)
-    camera->set_transform(current_tracking_matrix);
-
+    camera->set_transform(current_cam_tracking_matrix);
+    light_pointer->set_transform(current_pointer_tracking_matrix);
     #endif 
 
     if (window->should_close()) {
