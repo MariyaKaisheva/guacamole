@@ -59,7 +59,7 @@
 #define USE_ANAGLYPH 0
 #define USE_MONO 0 
 
-#define TRACKING_ENABLED 0
+#define TRACKING_ENABLED 1
 
 #define USE_TOON_RESOLVE_PASS 0
 
@@ -186,35 +186,11 @@ void key_press(gua::PipelineDescription& pipe, gua::SceneGraph& graph, int key, 
   
   
   bool movement_predicate = false;
-  std::cout << "scancode: " << scancode << " with action " << action << " movement_predicate: " << movement_predicate << " moves_positive_z: " << moves_positive_z << " moves_positive_x: " << moves_positive_x <<"\n";
+  //std::cout << "scancode: " << scancode << " with action " << action <<"\n";
 
   if( action != 0 ) {
     movement_predicate = true;
   } 
-
-  /*if(80 == scancode) {
-    moves_positive_y = movement_predicate;
-  }
-
-  if(88 == scancode ) {
-    moves_negative_y = movement_predicate;
-  } 
-
-  if(83 == scancode) {
-    moves_negative_x = movement_predicate;
-  }
-
-  if(85 == scancode) {
-    moves_positive_x = movement_predicate;
-  }
-
-  if(79 == scancode) {
-    moves_negative_z = movement_predicate;
-  }
-
-  if(81 == scancode) {
-    moves_positive_z = movement_predicate;
-  }*/
 
   if(111 == scancode){ //up arrow
     moves_positive_z = movement_predicate;
@@ -610,7 +586,6 @@ int main(int argc, char** argv) {
   screen->rotate(screen_rotation_x, 1, 0, 0);
   screen->rotate(screen_rotation_y, 0, 1, 0);
   screen->translate(screen_offset_x, screen_offset_y, screen_offset_z);
-
   auto navigation_eye_offset = graph.add_node<gua::node::TransformNode>("/navigation", "eye_offset");
   auto camera = graph.add_node<gua::node::CameraNode>("/navigation/eye_offset", "cam");
   navigation_eye_offset->translate(0, 0, glass_eye_offset);
@@ -721,7 +696,6 @@ int main(int argc, char** argv) {
         pointer_target[12] /= 1000.f; pointer_target[13] /= 1000.f; pointer_target[14] /= 1000.f;
         current_cam_tracking_matrix = camera_target;
         current_pointer_tracking_matrix = pointer_target;
-
         //std::cout << current_cam_tracking_matrix << "\n";
       }
     });
@@ -751,16 +725,11 @@ int main(int argc, char** argv) {
   #else
   double amount = 1.0 / 65.0;
   #endif
-
-
-  gua::math::mat4 camera_transl_mat = navigation->get_transform();
     
   // set time variable for animation
   i += 1.0 / 600.0;
   if (i > 1) i = 0;
-  character->set_time_1(i);
-
-  // apply trackball matrix to object
+  character->set_time_1(i); 
 
     /*#if USE_QUAD_BUFFERED
     gua::math::mat4 modelmatrix =  scm::math::make_rotation(++passed_frames/90.0, 0.0, 1.0, 0.0 );
@@ -769,23 +738,18 @@ int main(int argc, char** argv) {
     // world coordinate transform of initial camera
     //make_translation(0.0,0.0, + 0.6 ) * screen->get_transform() 
 
-
+    // apply trackball rotation
     gua::math::mat4 viewmatrix =   //PUT WORLD COORDINATE SYSTEM HERE
-
-                                    gua::math::mat4(scm::math::make_translation( screen_offset_x, screen_offset_y, screen_offset_z))
+                                  gua::math::mat4(scm::math::make_translation( screen_offset_x, screen_offset_y, screen_offset_z))
                                   * gua::math::mat4(trackball.rotation()) 
                                   * gua::math::mat4(scm::math::make_translation(-screen_offset_x, -screen_offset_y, -screen_offset_z));
     //#endif
-
-     gua::math::mat4 inverse_modelview_matrix = scm::math::inverse(viewmatrix);                             
-
      gua::math::mat4 scale_mat = scm::math::make_scale(200.0, 200.0, 200.0);
      gua::math::mat4 rot_mat_x = scm::math::make_rotation(-90.0, 1.0, 0.0, 0.0);
      gua::math::mat4 rot_mat_y = scm::math::make_rotation(106.8, 0.0, 1.0, 0.0);
      gua::math::mat4 trans_mat = scm::math::make_translation(-1330.0, -15.0, -10.0);
      //plod_head->set_transform( trans_mat*rot_mat_y*rot_mat_x* scale_mat *  default_node_transform);
-
-  //sponza->set_transform(scm::math::make_rotation(-90.0, 0.0, 1.0, 0.0) *scm::math::make_scale(0.4, 0.4, 0.4));                           
+                         
   gua::math::mat4 current_nav_transform = navigation->get_transform();
     
   if(reset_position){
@@ -796,9 +760,7 @@ int main(int argc, char** argv) {
       trackball.reset();
       reset_position = false;
   }
-     // std::cout << "Right: " << viewmatrix[0] << " " << viewmatrix[1] << " " << viewmatrix[2] << "\n";
-   // std::cout << "Up: " << viewmatrix[4] << " " << viewmatrix[5] << " " << viewmatrix[6] << "\n";
-   // std::cout << "Forward: " << -viewmatrix[8] << " " << -viewmatrix[9] << " " << -viewmatrix[10] << "\n";
+
   auto right_vector = scm::math::normalize( gua::math::vec3(viewmatrix[0], viewmatrix[1], viewmatrix[2]) ); 
   auto up_vector = scm::math::normalize( gua::math::vec3(viewmatrix[4], viewmatrix[5], viewmatrix[6]) );
   auto forward_vector = scm::math::normalize( gua::math::vec3(-viewmatrix[8], -viewmatrix[9], -viewmatrix[10]) ); 
@@ -807,10 +769,9 @@ int main(int argc, char** argv) {
   auto backward_vector = forward_vector * (-1);
 
 
-
   //Z and X are swapped due to tracking coordinate system origin ?!
   if( moves_positive_z ) {
-        std::cout << "FWD VEC: " << right_vector << "\n";
+        //std::cout << "FWD VEC: " << right_vector << "\n";
     translation_matrix = scm::math::make_translation(right_vector * amount) * translation_matrix ;
   }
 
@@ -828,29 +789,8 @@ int main(int argc, char** argv) {
     
     auto nav_transform = translation_matrix * viewmatrix;
     navigation->set_transform(nav_transform);
-    //current_nav_transformation = navigation->get_transform();
-    //current_translation_mat = gua::math::get_translation(current_nav_transformation);
+  //std::cout << "cam pos" << gua::math::vec3(nav_transform[12], nav_transform[13], nav_transform[14]) << "\n"; 
 
-
-
-  std::cout << "cam pos" << gua::math::vec3(nav_transform[12], nav_transform[13], nav_transform[14]) << "\n"; 
-
-  if(!moves_negative_x && !moves_positive_x && 
-      !moves_negative_z && !moves_positive_z && 
-      !moves_negative_y && !moves_positive_y ){
-      //navigation->set_transform(translation_matrix * viewmatrix);
-
-        /*gua::math::mat4 current_nav_transformation = navigation->get_transform();
-        auto current_translation_mat = gua::math::get_translation(current_nav_transformation);
-        auto current_translation_mat_from_trackball = gua::math::get_translation(modelmatrix);
-        navigation->set_transform(modelmatrix);
-        navigation->translate(-current_translation_mat_from_trackball); 
-        navigation->translate(current_translation_mat); */
-  }
-
-    //navigation->set_transform(inverse_modelview_matrix); 
-    //gua::math::mat4 plod_head_trasnformations = plod_head->get_trasform();
-    
     #if (USE_SIDE_BY_SIDE && TRACKING_ENABLED)
     camera->set_transform(current_cam_tracking_matrix);
     light_pointer->set_transform(current_pointer_tracking_matrix);
