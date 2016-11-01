@@ -83,7 +83,7 @@ void main() {
     else if(apply_outline) { //Outline effect is enabled 
 
       if(/*apply_outline &&*/ dot(edge_color, vec3(1) ) >= outline_treshhold) {
-          gua_out_color = vec3(0.0, 0.0, 1.0); //outline color 
+          gua_out_color = vec3(0.0, 0.0, 0.0); //outline color 
       }
       else{
         gua_out_color = gua_get_color(texcoord); //no halftoning; no outline applied

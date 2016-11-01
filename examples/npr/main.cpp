@@ -97,6 +97,7 @@ void mouse_button(gua::utils::Trackball& trackball,
 }
 
 ////golbal variables
+bool close_window = false;
 bool show_scene_1 = true;
 bool show_scene_2 = true;
 bool moves_positive_z = false;
@@ -213,22 +214,40 @@ void key_press(gua::PipelineDescription& pipe, gua::SceneGraph& graph, int key, 
   }
 
   //scene switch
-  if(10 == scancode){ //'1' shows only sponza scene
-    graph["/transform/sponza_scene_transform"]->get_tags().remove_tag("invisible");
-    graph["/transform/plod_scene_transform"]->get_tags().add_tag("invisible");
+  if(10 == scancode && action == 1){ //'1' hide sponza scene
+    //graph["/transform/sponza_scene_transform"]->get_tags().remove_tag("invisible");
+    if(!graph["/transform/sponza_scene_transform"]->get_tags().has_tag("invisible")){
+      graph["/transform/sponza_scene_transform"]->get_tags().add_tag("invisible");
+    }
+    else{
+      graph["/transform/sponza_scene_transform"]->get_tags().remove_tag("invisible");
+    }
   }
-  if(11 == scancode){ //'2' shows only pointcloud scene
-    graph["/transform/plod_scene_transform"]->get_tags().remove_tag("invisible");
-    graph["/transform/sponza_scene_transform"]->get_tags().add_tag("invisible");
+  if(11 == scancode && action == 1){ //'2' hide  pointcloud scene
+    /*graph["/transform/sponza_scene_transform"]->get_tags().remove_tag("invisible");
+    graph["/transform/simple_geom_scene_transform"]->get_tags().remove_tag("invisible");
+    graph["/transform/plod_scene_transform"]->get_tags().add_tag("invisible");*/
+    if(!graph["/transform/plod_scene_transform"]->get_tags().has_tag("invisible")){
+      graph["/transform/plod_scene_transform"]->get_tags().add_tag("invisible");
+    }
+    else{
+      graph["/transform/plod_scene_transform"]->get_tags().remove_tag("invisible");
+    }
   }
 
-  /*if(12 == scancode){ //'3' shows only simple geometry 
-    graph["/transform/plod_transform"]->get_tags().add_tag("invisible");
-  }*/
+  if(12 == scancode && action == 1){ //'3' hide  simple geometry 
+    if(!graph["/transform/simple_geom_scene_transform"]->get_tags().has_tag("invisible")){
+      graph["/transform/simple_geom_scene_transform"]->get_tags().add_tag("invisible");
+    }
+    else{
+      graph["/transform/simple_geom_scene_transform"]->get_tags().remove_tag("invisible");
+    }
+  }
 
   if(13 == scancode){ //'4' combined scene
     graph["/transform/sponza_scene_transform"]->get_tags().remove_tag("invisible");
     graph["/transform/plod_scene_transform"]->get_tags().remove_tag("invisible");
+    graph["/transform/simple_geom_scene_transform"]->get_tags().remove_tag("invisible");
   }
  
   if (action == 0) return;
@@ -314,6 +333,10 @@ void key_press(gua::PipelineDescription& pipe, gua::SceneGraph& graph, int key, 
       create_screenspace_outlines = !create_screenspace_outlines;
       rebuild_pipe(pipe);
     break;
+
+    case 'q':
+      close_window = true;
+    break;
   
    default:
     break;
@@ -386,7 +409,9 @@ int main(int argc, char** argv) {
   //---Sponsa---
   auto sponza(trimesh_loader.create_geometry_from_file("sponza", "/home/vajo3185/More_Modified_Sponza_/sponza.obj", gua::TriMeshLoader::NORMALIZE_POSITION |  gua::TriMeshLoader::NORMALIZE_SCALE | 
                   gua::TriMeshLoader::LOAD_MATERIALS ));
-  auto test_cube(trimesh_loader.create_geometry_from_file("cube", "./data/colored_cube/colored_cube.obj", gua::TriMeshLoader::NORMALIZE_POSITION | gua::TriMeshLoader::LOAD_MATERIALS));
+  auto test_cube_with_colors(trimesh_loader.create_geometry_from_file("cube", "./data/colored_cube/colored_cube.obj", gua::TriMeshLoader::NORMALIZE_POSITION | gua::TriMeshLoader::LOAD_MATERIALS));
+  auto test_cube_plain(trimesh_loader.create_geometry_from_file("cube", "./data/colored_cube/colored_cube.obj", gua::TriMeshLoader::NORMALIZE_POSITION ));
+  auto test_cube_with_trancsparency(trimesh_loader.create_geometry_from_file("cube", "./data/colored_cube/colored_cube.obj", snail_material, gua::TriMeshLoader::NORMALIZE_POSITION ));
   
   //---teapot----
   auto teapot(trimesh_loader.create_geometry_from_file(
@@ -405,7 +430,8 @@ int main(int argc, char** argv) {
    auto sphere(trimesh_loader.create_geometry_from_file(
                 "icosphere", "data/objects/icosphere.obj", 
                 gua::TriMeshLoader::NORMALIZE_POSITION |
-                gua::TriMeshLoader::NORMALIZE_SCALE));   
+                gua::TriMeshLoader::NORMALIZE_SCALE |
+                gua::TriMeshLoader::LOAD_MATERIALS));   
 
   //---character---    
   auto character(loader.create_geometry_from_file("character", "/opt/project_animation/Assets/HeroTPP.FBX",
@@ -470,11 +496,10 @@ int main(int argc, char** argv) {
 
    snail->set_transform(scm::math::make_scale(5.0, 5.0,5.0));
    //cat->set_transform(scm::math::make_translation(-80.0, -660.0, -70.0)*scm::math::make_rotation(65.0, 0.0, 1.0, 0.0)*scm::math::make_scale(150.0, 150.0, 150.0));
-   cat->set_transform(scm::math::make_translation(2.0, 0.0, 0.0));
+   cat->set_transform(scm::math::make_translation(1.5, -0.2, 0.0));
    plod_transform->rotate(-180, 1.0, 0.0, 0.0);
    plod_transform->rotate(-120, 0.0, 1.0, 0.0);
-   //plod_transform->translate(screen_offset_x, screen_offset_y, screen_offset_z);
-   plod_transform->translate(0.0, 12.0, 0.0);
+   plod_transform->translate(0.0, 14.0, 0.0);
    plod_transform->translate(50.0, 0.0, 15.0);
    plod_transform->scale(0.09);
    float scale_value = 0.7f;
@@ -487,7 +512,18 @@ int main(int argc, char** argv) {
    plod_tower_6->set_radius_scale(scale_value);
    plod_tower_7->set_radius_scale(scale_value);
    plod_tower_8->set_radius_scale(scale_value);
-   test_cube->scale(0.05f);
+
+   simple_geom_scene_transform->translate(0.20, 0.0, 0.0);
+   //simple_geom_scene_transform->scale(0.5);
+   sphere->translate(3.0, -0.5, 0.8);
+   test_cube_plain->scale(0.05f);
+   test_cube_plain->translate(0.3, 0.05, 0.0);
+   test_cube_with_colors->translate(0.0, 0.10, 1.8);
+   test_cube_with_colors->scale(0.05f);
+   test_cube_with_trancsparency->translate(0.2, -0.05, -0.5);
+   test_cube_with_trancsparency->scale(0.08f);
+
+   
 
    #if USE_SIDE_BY_SIDE
     //transform->translate(screen_offset_x, screen_offset_y, screen_offset_z);
@@ -501,7 +537,10 @@ int main(int argc, char** argv) {
   //teapot->translate(screen_offset_x, screen_offset_y, screen_offset_z);
   teapot->translate(2.90, 0.0, 0.0);
   graph.add_node(sponza_scene_transform, sponza);
-  //graph.add_node(simple_geom_scene_transform, teapot);
+  graph.add_node(simple_geom_scene_transform, sphere);
+  graph.add_node(simple_geom_scene_transform, test_cube_with_trancsparency);
+  graph.add_node(simple_geom_scene_transform, test_cube_plain);
+  graph.add_node(simple_geom_scene_transform, test_cube_with_colors);
   //graph.add_node(transform, plod_head);
 
   graph.add_node(plod_transform, plod_tower);
@@ -557,15 +596,15 @@ int main(int argc, char** argv) {
   point_light->data.set_type(gua::node::LightNode::Type::SUN);
   point_light->data.brightness = 5.0f;
   point_light->data.color = gua::utils::Color3f(0.0, 1.0, 0.5);
-  graph.add_node("/navigation/light_pointer", sphere);
+  //graph.add_node("/navigation/light_pointer", sphere);
 
 
 
   auto screen = graph.add_node<gua::node::ScreenNode>("/navigation", "screen");
   
   //tmp for test needs
-  test_cube->rotate(45.0, 0.0, 1.0, 0.0);
-  //graph.add_node("/navigation/screen", test_cube);
+  test_cube_with_trancsparency->rotate(45.0, 0.0, 1.0, 0.0);
+  //graph.add_node("/navigation/screen", test_cube_plain);
  
   
   //physical size of output viewport
@@ -721,7 +760,7 @@ int main(int argc, char** argv) {
   ticker.on_tick.connect([&]() {
 
   #if USE_SIDE_BY_SIDE
-  double amount = 1.0 / 200.0; 
+  double amount = 1.0 / 250.0; 
   #else
   double amount = 1.0 / 65.0;
   #endif
@@ -796,7 +835,7 @@ int main(int argc, char** argv) {
     light_pointer->set_transform(current_pointer_tracking_matrix);
     #endif 
 
-    if (window->should_close()) {
+    if (window->should_close() || close_window) {
       renderer.stop();
       window->close();
       loop.stop();
