@@ -35,6 +35,7 @@
 #include <gua/renderer/NprOutlinePass.hpp>
 #include <gua/renderer/NPREffectPass.hpp>
 #include <gua/utils/Trackball.hpp>
+//#include <gua/gui.hpp> 
 
 #include <gua/renderer/TriMeshPass.hpp>
 #include <gua/renderer/LightVisibilityPass.hpp>
@@ -96,6 +97,8 @@ void mouse_button(gua::utils::Trackball& trackball,
 }
 
 ////golbal variables
+bool show_scene_1 = true;
+bool show_scene_2 = true;
 bool moves_positive_z = false;
 bool moves_negative_z = false;
 bool moves_positive_y = false;
@@ -180,16 +183,16 @@ void rebuild_pipe(gua::PipelineDescription& pipe) {
 void key_press(gua::PipelineDescription& pipe, gua::SceneGraph& graph, int key, int scancode, int action, int mods)
 {
 
-  //std::cout << "scancode: " << scancode << " with action " << action <<":\n";
+  
   
   bool movement_predicate = false;
-
+  std::cout << "scancode: " << scancode << " with action " << action << " movement_predicate: " << movement_predicate << " moves_positive_z: " << moves_positive_z << " moves_positive_x: " << moves_positive_x <<"\n";
 
   if( action != 0 ) {
     movement_predicate = true;
   } 
 
-  if(80 == scancode) {
+  /*if(80 == scancode) {
     moves_positive_y = movement_predicate;
   }
 
@@ -211,23 +214,45 @@ void key_press(gua::PipelineDescription& pipe, gua::SceneGraph& graph, int key, 
 
   if(81 == scancode) {
     moves_positive_z = movement_predicate;
+  }*/
+
+  if(111 == scancode){ //up arrow
+    moves_positive_z = movement_predicate;
   }
 
-  
+  if(116 == scancode){//down arrow
+    moves_negative_z = movement_predicate;
+  }
+
+  if(113 == scancode){ //left arrow
+    moves_positive_x = movement_predicate;
+  }
+
+  if(114 == scancode){//right arrow
+    moves_negative_x = movement_predicate;
+  }
+
   if(90 == scancode){ //Numpad 0 pressed
     reset_position = true;
-     // graph["/navigation/screen"]->get_tags().remove_tag("invisible");
   }
 
-  if(82 == scancode){ // Numpad -
-    //graph["/navigation/screen"]->get_tags().add_tag("invisible");
+  //scene switch
+  if(10 == scancode){ //'1' shows only sponza scene
+    graph["/transform/sponza_scene_transform"]->get_tags().remove_tag("invisible");
+    graph["/transform/plod_scene_transform"]->get_tags().add_tag("invisible");
+  }
+  if(11 == scancode){ //'2' shows only pointcloud scene
+    graph["/transform/plod_scene_transform"]->get_tags().remove_tag("invisible");
+    graph["/transform/sponza_scene_transform"]->get_tags().add_tag("invisible");
+  }
 
-    if(!graph["/navigation/screen"]->get_tags().has_tag("invisible")){
-      graph["/navigation/screen"]->get_tags().add_tag("invisible");
-    }
-    else{
-      graph["/navigation/screen"]->get_tags().remove_tag("invisible");
-    } 
+  /*if(12 == scancode){ //'3' shows only simple geometry 
+    graph["/transform/plod_transform"]->get_tags().add_tag("invisible");
+  }*/
+
+  if(13 == scancode){ //'4' combined scene
+    graph["/transform/sponza_scene_transform"]->get_tags().remove_tag("invisible");
+    graph["/transform/plod_scene_transform"]->get_tags().remove_tag("invisible");
   }
  
   if (action == 0) return;
@@ -334,7 +359,16 @@ int main(int argc, char** argv) {
   lod_loader.set_upload_budget_in_mb(20);
 
   auto transform = graph.add_node<gua::node::TransformNode>("/", "transform");
-  auto plod_transform = graph.add_node<gua::node::TransformNode>("/transform", "plod_transform");
+
+  //sponza scene
+  auto sponza_scene_transform = graph.add_node<gua::node::TransformNode>("/transform", "sponza_scene_transform");
+
+  //pointcloud scene
+  auto plod_scene_transform = graph.add_node<gua::node::TransformNode>("/transform", "plod_scene_transform");
+  auto plod_transform = graph.add_node<gua::node::TransformNode>("/transform/plod_scene_transform", "plod_transform");
+
+  //simple geometry
+  auto simple_geom_scene_transform = graph.add_node<gua::node::TransformNode>("/transform", "simple_geom_scene_transform");
 
 
   //materials///////////////
@@ -462,10 +496,11 @@ int main(int argc, char** argv) {
    //cat->set_transform(scm::math::make_translation(-80.0, -660.0, -70.0)*scm::math::make_rotation(65.0, 0.0, 1.0, 0.0)*scm::math::make_scale(150.0, 150.0, 150.0));
    cat->set_transform(scm::math::make_translation(2.0, 0.0, 0.0));
    plod_transform->rotate(-180, 1.0, 0.0, 0.0);
-   plod_transform->rotate(-90, 0.0, 1.0, 0.0);
-   plod_transform->translate(screen_offset_x, screen_offset_y, screen_offset_z);
+   plod_transform->rotate(-120, 0.0, 1.0, 0.0);
+   //plod_transform->translate(screen_offset_x, screen_offset_y, screen_offset_z);
    plod_transform->translate(0.0, 12.0, 0.0);
-   //plod_transform->scale(0.15);
+   plod_transform->translate(50.0, 0.0, 15.0);
+   plod_transform->scale(0.09);
    float scale_value = 0.7f;
    plod_head->set_radius_scale(scale_value);
    plod_tower->set_radius_scale(scale_value);
@@ -479,27 +514,33 @@ int main(int argc, char** argv) {
    test_cube->scale(0.05f);
 
    #if USE_SIDE_BY_SIDE
+    //transform->translate(screen_offset_x, screen_offset_y, screen_offset_z);
     sponza->scale(8.0f);
     sponza->rotate(180, 0, 1, 0);
     sponza->translate(screen_offset_x, screen_offset_y, screen_offset_z);
     sphere->scale(0.05);
    #endif
 
-  graph.add_node("/transform", sponza);
-  //graph.add_node("/transform", teapot);
-  //graph.add_node("/transform", plod_head);
-  /*graph.add_node("/transform/plod_transform", plod_tower);
-  graph.add_node("/transform/plod_transform", plod_tower_2);
-  graph.add_node("/transform/plod_transform", plod_tower_3);
-  graph.add_node("/transform/plod_transform", plod_tower_4);
-  graph.add_node("/transform/plod_transform", plod_tower_5);
-  graph.add_node("/transform/plod_transform", plod_tower_6);
-  graph.add_node("/transform/plod_transform", plod_tower_7);
-  graph.add_node("/transform/plod_transform", plod_tower_8);*/
+  simple_geom_scene_transform->translate(screen_offset_x, screen_offset_y, screen_offset_z);
+  //teapot->translate(screen_offset_x, screen_offset_y, screen_offset_z);
+  teapot->translate(2.90, 0.0, 0.0);
+  graph.add_node(sponza_scene_transform, sponza);
+  //graph.add_node(simple_geom_scene_transform, teapot);
+  //graph.add_node(transform, plod_head);
 
-
-  graph.add_node("/transform", cat);
-  //graph.add_node("/transform", sphere);
+  graph.add_node(plod_transform, plod_tower);
+  graph.add_node(plod_transform, plod_tower_2);
+  graph.add_node(plod_transform, plod_tower_3);
+  graph.add_node(plod_transform, plod_tower_4);
+  graph.add_node(plod_transform, plod_tower_5);
+  graph.add_node(plod_transform, plod_tower_6);
+  graph.add_node(plod_transform, plod_tower_7);
+  graph.add_node(plod_transform, plod_tower_8);
+  graph.add_node(transform, cat);
+  
+  /*if(!show_scene_2){
+    graph["/transform/plod_transform"]->get_tags().add_tag("invisible");
+  }*/
 
  /* auto light2 = graph.add_node<gua::node::LightNode>("/", "light2");
   light2->data.set_type(gua::node::LightNode::Type::POINT);
@@ -548,16 +589,8 @@ int main(int argc, char** argv) {
   
   //tmp for test needs
   test_cube->rotate(45.0, 0.0, 1.0, 0.0);
-  graph.add_node("/navigation/screen", test_cube);
-  //graph.add_node("/navigation/screen", plod_transform);
-  /*graph.add_node("/navigation/screen", plod_tower_2);
-  graph.add_node("/navigation/screen", plod_tower_3);
-  graph.add_node("/navigation/screen", plod_tower_4);
-  graph.add_node("/navigation/screen", plod_tower_5);
-  graph.add_node("/navigation/screen", plod_tower_6);
-  graph.add_node("/navigation/screen", plod_tower_7);
-  graph.add_node("/navigation/screen", plod_tower_8);*/
-
+  //graph.add_node("/navigation/screen", test_cube);
+ 
   
   //physical size of output viewport
 
@@ -689,10 +722,15 @@ int main(int argc, char** argv) {
         current_cam_tracking_matrix = camera_target;
         current_pointer_tracking_matrix = pointer_target;
 
-        std::cout << current_cam_tracking_matrix << "\n";
+        //std::cout << current_cam_tracking_matrix << "\n";
       }
     });
   #endif
+
+
+    gua::math::mat4 translation_matrix = gua::math::mat4::identity();
+    gua::math::mat4 current_nav_transformation = navigation->get_transform();
+    auto current_translation_mat = gua::math::get_translation(current_nav_transformation);
 
   gua::Renderer renderer;
 
@@ -709,13 +747,13 @@ int main(int argc, char** argv) {
   ticker.on_tick.connect([&]() {
 
   #if USE_SIDE_BY_SIDE
-  double amount = 1.0 / 195.0; 
+  double amount = 1.0 / 200.0; 
   #else
   double amount = 1.0 / 65.0;
   #endif
 
 
-  gua::math::mat4 camera_transl_mat = navigation-> get_transform();
+  gua::math::mat4 camera_transl_mat = navigation->get_transform();
     
   // set time variable for animation
   i += 1.0 / 600.0;
@@ -727,11 +765,19 @@ int main(int argc, char** argv) {
     /*#if USE_QUAD_BUFFERED
     gua::math::mat4 modelmatrix =  scm::math::make_rotation(++passed_frames/90.0, 0.0, 1.0, 0.0 );
     #else*/
-    gua::math::mat4 modelmatrix = scm::math::make_translation(trackball.shiftx(), trackball.shifty(),trackball.distance()) *
-                                  gua::math::mat4(trackball.rotation());
+
+    // world coordinate transform of initial camera
+    //make_translation(0.0,0.0, + 0.6 ) * screen->get_transform() 
+
+
+    gua::math::mat4 viewmatrix =   //PUT WORLD COORDINATE SYSTEM HERE
+
+                                    gua::math::mat4(scm::math::make_translation( screen_offset_x, screen_offset_y, screen_offset_z))
+                                  * gua::math::mat4(trackball.rotation()) 
+                                  * gua::math::mat4(scm::math::make_translation(-screen_offset_x, -screen_offset_y, -screen_offset_z));
     //#endif
 
-     gua::math::mat4 inverse_modelview_matrix = scm::math::inverse(modelmatrix);                             
+     gua::math::mat4 inverse_modelview_matrix = scm::math::inverse(viewmatrix);                             
 
      gua::math::mat4 scale_mat = scm::math::make_scale(200.0, 200.0, 200.0);
      gua::math::mat4 rot_mat_x = scm::math::make_rotation(-90.0, 1.0, 0.0, 0.0);
@@ -743,35 +789,64 @@ int main(int argc, char** argv) {
   gua::math::mat4 current_nav_transform = navigation->get_transform();
     
   if(reset_position){
-      navigation->set_transform(gua::math::mat4::identity());
+      //navigation->set_transform(gua::math::mat4::identity());
+      viewmatrix = gua::math::mat4::identity();
+      translation_matrix = gua::math::mat4::identity();
       transform->set_transform(gua::math::mat4::identity());
       trackball.reset();
       reset_position = false;
   }
-  if( moves_negative_y ) 
-      transform->translate(0.0, amount, 0.0);
-  if( moves_positive_y ) 
-      transform->translate(0.0, -amount, 0.0);  
-  if( moves_positive_z ) 
-      transform->translate(0.0, 0.0, -amount);
-  if( moves_negative_z ) 
-      transform->translate(0.0, 0.0,  amount);
-  if( moves_positive_x ) 
-      transform->translate(-amount, 0.0, 0.0);
-  if( moves_negative_x ) 
-      transform->translate(amount, 0.0, 0.0);
+     // std::cout << "Right: " << viewmatrix[0] << " " << viewmatrix[1] << " " << viewmatrix[2] << "\n";
+   // std::cout << "Up: " << viewmatrix[4] << " " << viewmatrix[5] << " " << viewmatrix[6] << "\n";
+   // std::cout << "Forward: " << -viewmatrix[8] << " " << -viewmatrix[9] << " " << -viewmatrix[10] << "\n";
+  auto right_vector = scm::math::normalize( gua::math::vec3(viewmatrix[0], viewmatrix[1], viewmatrix[2]) ); 
+  auto up_vector = scm::math::normalize( gua::math::vec3(viewmatrix[4], viewmatrix[5], viewmatrix[6]) );
+  auto forward_vector = scm::math::normalize( gua::math::vec3(-viewmatrix[8], -viewmatrix[9], -viewmatrix[10]) ); 
+  auto left_vector = right_vector * (-1);
+  auto down_vector = up_vector * (-1);
+  auto backward_vector = forward_vector * (-1);
 
-  navigation->set_transform(modelmatrix);
-  /*if(!moves_negative_x && !moves_positive_x && 
+
+
+  //Z and X are swapped due to tracking coordinate system origin ?!
+  if( moves_positive_z ) {
+        std::cout << "FWD VEC: " << right_vector << "\n";
+    translation_matrix = scm::math::make_translation(right_vector * amount) * translation_matrix ;
+  }
+
+  if( moves_negative_z ){
+    translation_matrix = scm::math::make_translation(left_vector * amount) * translation_matrix;
+  } 
+
+  if( moves_positive_x ) {
+    translation_matrix = scm::math::make_translation(forward_vector * amount) * translation_matrix;
+  }
+
+  if( moves_negative_x ) {
+    translation_matrix = scm::math::make_translation(backward_vector *amount) * translation_matrix;
+  } 
+    
+    auto nav_transform = translation_matrix * viewmatrix;
+    navigation->set_transform(nav_transform);
+    //current_nav_transformation = navigation->get_transform();
+    //current_translation_mat = gua::math::get_translation(current_nav_transformation);
+
+
+
+  std::cout << "cam pos" << gua::math::vec3(nav_transform[12], nav_transform[13], nav_transform[14]) << "\n"; 
+
+  if(!moves_negative_x && !moves_positive_x && 
       !moves_negative_z && !moves_positive_z && 
       !moves_negative_y && !moves_positive_y ){
-        gua::math::mat4 current_nav_transformation = navigation->get_transform();
+      //navigation->set_transform(translation_matrix * viewmatrix);
+
+        /*gua::math::mat4 current_nav_transformation = navigation->get_transform();
         auto current_translation_mat = gua::math::get_translation(current_nav_transformation);
         auto current_translation_mat_from_trackball = gua::math::get_translation(modelmatrix);
         navigation->set_transform(modelmatrix);
         navigation->translate(-current_translation_mat_from_trackball); 
-        navigation->translate(current_translation_mat); 
-  }*/
+        navigation->translate(current_translation_mat); */
+  }
 
     //navigation->set_transform(inverse_modelview_matrix); 
     //gua::math::mat4 plod_head_trasnformations = plod_head->get_trasform();
