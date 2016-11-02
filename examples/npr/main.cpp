@@ -111,6 +111,7 @@ bool reset_position = false;
 bool use_toon_resolve_pass = false; 
 bool apply_bilateral_filter = false;
 bool apply_halftoning_effect = false; 
+bool no_color = false;
 bool create_screenspace_outlines = false; 
 int thickness = 0;
 //int brightness_factor = 1;
@@ -169,8 +170,9 @@ void rebuild_pipe(gua::PipelineDescription& pipe) {
   
   if (create_screenspace_outlines || apply_halftoning_effect){
    pipe.add_pass(std::make_shared<gua::NprOutlinePassDescription>());
-  pipe.get_npr_outline_pass()->halftoning(apply_halftoning_effect);
+   pipe.get_npr_outline_pass()->halftoning(apply_halftoning_effect);
    pipe.get_npr_outline_pass()->apply_outline(create_screenspace_outlines);
+   pipe.get_npr_outline_pass()->no_color(no_color);
   }
 
   //pipe.add_pass(std::make_shared<gua::NprOutlinePassDescription>());
@@ -215,7 +217,6 @@ void key_press(gua::PipelineDescription& pipe, gua::SceneGraph& graph, int key, 
 
   //scene switch
   if(10 == scancode && action == 1){ //'1' hide sponza scene
-    //graph["/transform/sponza_scene_transform"]->get_tags().remove_tag("invisible");
     if(!graph["/transform/sponza_scene_transform"]->get_tags().has_tag("invisible")){
       graph["/transform/sponza_scene_transform"]->get_tags().add_tag("invisible");
     }
@@ -224,9 +225,6 @@ void key_press(gua::PipelineDescription& pipe, gua::SceneGraph& graph, int key, 
     }
   }
   if(11 == scancode && action == 1){ //'2' hide  pointcloud scene
-    /*graph["/transform/sponza_scene_transform"]->get_tags().remove_tag("invisible");
-    graph["/transform/simple_geom_scene_transform"]->get_tags().remove_tag("invisible");
-    graph["/transform/plod_scene_transform"]->get_tags().add_tag("invisible");*/
     if(!graph["/transform/plod_scene_transform"]->get_tags().has_tag("invisible")){
       graph["/transform/plod_scene_transform"]->get_tags().add_tag("invisible");
     }
@@ -331,6 +329,11 @@ void key_press(gua::PipelineDescription& pipe, gua::SceneGraph& graph, int key, 
     //toogle outlines - screenspace pass
     case 'l':
       create_screenspace_outlines = !create_screenspace_outlines;
+      rebuild_pipe(pipe);
+    break;
+
+    case 'k':
+      no_color = !no_color;
       rebuild_pipe(pipe);
     break;
 
@@ -514,7 +517,7 @@ int main(int argc, char** argv) {
    plod_tower_8->set_radius_scale(scale_value);
 
    simple_geom_scene_transform->translate(0.20, 0.0, 0.0);
-   //simple_geom_scene_transform->scale(0.5);
+   //simple_geom_scene_transform->scale(2.5);
    sphere->translate(3.0, -0.5, 0.8);
    test_cube_plain->scale(0.05f);
    test_cube_plain->translate(0.3, 0.05, 0.0);
@@ -595,7 +598,8 @@ int main(int argc, char** argv) {
   auto point_light = graph.add_node<gua::node::LightNode>("/navigation/light_pointer", "point_light");
   point_light->data.set_type(gua::node::LightNode::Type::SUN);
   point_light->data.brightness = 5.0f;
-  point_light->data.color = gua::utils::Color3f(0.0, 1.0, 0.5);
+  //point_light->data.brightness = 15.0f;
+  point_light->data.color = gua::utils::Color3f(0.2, 1.0, 0.5);
   //graph.add_node("/navigation/light_pointer", sphere);
 
 
@@ -778,16 +782,32 @@ int main(int argc, char** argv) {
     //make_translation(0.0,0.0, + 0.6 ) * screen->get_transform() 
 
     // apply trackball rotation
+    #if !TRACKING_ENABLED
     gua::math::mat4 viewmatrix =   //PUT WORLD COORDINATE SYSTEM HERE
                                   gua::math::mat4(scm::math::make_translation( screen_offset_x, screen_offset_y, screen_offset_z))
                                   * gua::math::mat4(trackball.rotation()) 
                                   * gua::math::mat4(scm::math::make_translation(-screen_offset_x, -screen_offset_y, -screen_offset_z));
-    //#endif
-     gua::math::mat4 scale_mat = scm::math::make_scale(200.0, 200.0, 200.0);
+    #else
+    /*gua::math::mat4 viewmatrix =   //PUT WORLD COORDINATE SYSTEM HERE
+                                  gua::math::mat4(scm::math::make_translation(gua::math::get_translation(current_cam_tracking_matrix)))
+                                  * gua::math::mat4(trackball.rotation()) 
+                                  * gua::math::mat4(scm::math::make_translation((-1)*gua::math::get_translation(current_cam_tracking_matrix)));*/
+    gua::math::mat4 viewmatrix =   //PUT WORLD COORDINATE SYSTEM HERE
+                                  gua::math::mat4(scm::math::make_translation( screen_offset_x, screen_offset_y, screen_offset_z))
+                                  * gua::math::mat4(trackball.rotation()) 
+                                  * gua::math::mat4(scm::math::make_translation(-screen_offset_x, -screen_offset_y, -screen_offset_z));
+    #endif
+
+    /*gua::math::mat4 scale_mat = scm::math::make_scale(200.0, 200.0, 200.0);
      gua::math::mat4 rot_mat_x = scm::math::make_rotation(-90.0, 1.0, 0.0, 0.0);
      gua::math::mat4 rot_mat_y = scm::math::make_rotation(106.8, 0.0, 1.0, 0.0);
-     gua::math::mat4 trans_mat = scm::math::make_translation(-1330.0, -15.0, -10.0);
+     gua::math::mat4 trans_mat = scm::math::make_translation(-1330.0, -15.0, -10.0);*/
      //plod_head->set_transform( trans_mat*rot_mat_y*rot_mat_x* scale_mat *  default_node_transform);
+
+
+     //add simple geometry rotation
+     gua::math::mat4 model_rot_matrix = scm::math::make_rotation(0.1, 0.0, 1.0, 0.0 );
+     test_cube_with_trancsparency->set_transform((test_cube_with_trancsparency->get_transform())*model_rot_matrix);
                          
   gua::math::mat4 current_nav_transform = navigation->get_transform();
     

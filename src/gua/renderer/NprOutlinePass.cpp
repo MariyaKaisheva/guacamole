@@ -83,5 +83,11 @@ namespace gua {
   uniforms["apply_outline"] = value;
   return *this;
   }
+   ////////////////////////////////////////////////////////////////////////////////
+  NprOutlinePassDescription& NprOutlinePassDescription::no_color(bool value)
+  {
+  uniforms["no_color"] = value;
+  return *this;
+  }
 
 }

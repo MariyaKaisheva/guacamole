@@ -9,6 +9,7 @@ in vec2 gua_quad_coords;
 uniform int line_thickness;
 uniform bool halftoning;
 uniform bool apply_outline;
+uniform bool no_color;
 
 // output
 layout(location=0) out vec3 gua_out_color;
@@ -31,9 +32,14 @@ void main() {
                         0.0, 0.0, 0.0,
                         1.0, 2.0, 1.0);
             
-  mat3 dither_mat = mat3(0.1, 0.8, 0.4,
+  /*mat3 dither_mat = mat3(0.1, 0.8, 0.4,
                          0.7, 0.6, 0.3,
-                         0.5, 0.2, 0.9);             
+                         0.5, 0.2, 0.9);  */
+  mat4  dither_mat = mat4(1.0, 9.0, 3.0, 11.0,
+                          13.0, 5.0, 15.0, 7.0,
+                          4.0, 12.0, 2.0, 10.0,
+                          16.0, 8.0, 14.0, 6.0) / 17 ; 
+  //dither_mat = dither_mat/17.0;
 
   vec3 color = gua_get_color(texcoord);
   vec3 accumulated_color_x = vec3(0.0, 0.0, 0.0);
@@ -60,44 +66,44 @@ void main() {
                          sqrt(pow(accumulated_color_x.z, 2) + pow(accumulated_color_y.z, 2)));
 
 
-  float depth = get_linearized_depth(texcoord); 
+  float depth = gua_get_depth();
   float outline_treshhold = 0.3; //TODO meaning of the value?! 
+  float color_scale_var = 5.0; //color discritisation value
+  int kernel_size = 4; //changes the size repeated pattern grid; influences the showerdoor effect; should correspond to dither_mat dimensions
 
-  if(depth < gua_clip_far){ //check for background
+  if(depth < 1){ //check for background
     if((halftoning && !apply_outline) || (halftoning && apply_outline && dot(edge_color, vec3(1) ) < outline_treshhold)) { //Halftonning effect is enabled 
       float gray = color.x* 0.2126 + color.y* 0.7152 + color.z* 0.0722;
       vec3 gray_color = vec3(gray, gray, gray);
-      int x = int(mod(gl_FragCoord.x, 3));
-      int y = int(mod(gl_FragCoord.y, 3)); 
+      int x = int(mod(gl_FragCoord.x, kernel_size));
+      int y = int(mod(gl_FragCoord.y, kernel_size)); 
       gray_color = gray_color + gray_color*(dither_mat[x][y]);
-      vec3 dithered_color = vec3(0.0, 1.0, 0.0);
+      vec3 dithered_color = vec3(0.0, 0.0, 0.0);
       if (gray_color.x < dither_mat[x][y]) { 
-       dithered_color = (floor(gua_get_color(texcoord).xyz*10))/10.0;
+       dithered_color = (floor(gua_get_color(texcoord).xyz*color_scale_var))/color_scale_var;
       }
       else {
-        dithered_color = (ceil(gua_get_color(texcoord).xyz*10.0))/10.0;
+        dithered_color = (ceil(gua_get_color(texcoord).xyz*color_scale_var))/color_scale_var;
       }
-
       gua_out_color = dithered_color;
     }
     else if(apply_outline) { //Outline effect is enabled 
 
-      if(/*apply_outline &&*/ dot(edge_color, vec3(1) ) >= outline_treshhold) {
+      if(dot(edge_color, vec3(1) ) >= outline_treshhold) {
           gua_out_color = vec3(0.0, 0.0, 0.0); //outline color 
       }
       else{
-        gua_out_color = gua_get_color(texcoord); //no halftoning; no outline applied
+        if(no_color){
+          gua_out_color = vec3(1.0, 1.0, 1.0);
+        }else{
+          gua_out_color = gua_get_color(texcoord); //no halftoning; no outline applied
+        }
+        
       }    
     }
-    /*if( get_linearized_depth(texcoord)  < 1 ) {
-      gua_out_color = vec3(1.0, 0.0, 0.0);
-    } else {
-      gua_out_color = vec3(0.0, 1.0, 0.0);
-    }*/
 }
 else {//background color 
- gua_out_color =  gua_get_color(texcoord); //vec3(0.2, 0.2, 0.2);
+ gua_out_color =  gua_get_color(texcoord); 
 } 
-
 
 }

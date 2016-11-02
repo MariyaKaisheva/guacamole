@@ -39,6 +39,7 @@ class GUA_DLL NprOutlinePassDescription : public PipelinePassDescription {
   NprOutlinePassDescription& line_thickness(int value);
   NprOutlinePassDescription& halftoning(bool value);
   NprOutlinePassDescription& apply_outline(bool value);
+  NprOutlinePassDescription& no_color(bool value);
 
 
   friend class Pipeline;
