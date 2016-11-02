@@ -195,19 +195,19 @@ void key_press(gua::PipelineDescription& pipe, gua::SceneGraph& graph, int key, 
     movement_predicate = true;
   } 
 
-  if(111 == scancode){ //up arrow
+  if(25 == scancode){ // 'w' (111 - up arrow)
     moves_positive_z = movement_predicate;
   }
 
-  if(116 == scancode){//down arrow
+  if(39 == scancode){//'s' (116 - down arrow)
     moves_negative_z = movement_predicate;
   }
 
-  if(113 == scancode){ //left arrow
+  if(38 == scancode){ //'a' (113 left arrow) 
     moves_positive_x = movement_predicate;
   }
 
-  if(114 == scancode){//right arrow
+  if(40 == scancode){//'d' (114 right arrow)
     moves_negative_x = movement_predicate;
   }
 
@@ -216,7 +216,7 @@ void key_press(gua::PipelineDescription& pipe, gua::SceneGraph& graph, int key, 
   }
 
   //scene switch
-  if(10 == scancode && action == 1){ //'1' hide sponza scene
+  if(10 == scancode && action == 1){ //'1' hide sponza scene                 
     if(!graph["/transform/sponza_scene_transform"]->get_tags().has_tag("invisible")){
       graph["/transform/sponza_scene_transform"]->get_tags().add_tag("invisible");
     }
@@ -260,7 +260,7 @@ void key_press(gua::PipelineDescription& pipe, gua::SceneGraph& graph, int key, 
     break;  
     
     //line thickness
-    case 'w':
+    case 'c':
       if(thickness < max && apply_bilateral_filter) {
         ++thickness;
         /*++brightness_factor;
@@ -269,7 +269,7 @@ void key_press(gua::PipelineDescription& pipe, gua::SceneGraph& graph, int key, 
       }
     break;   
 
-    case 's':   
+    case 'v':   
       if(thickness > min && apply_bilateral_filter) {
         --thickness;
         pipe.get_npr_pass()->line_thickness(thickness);
@@ -277,7 +277,7 @@ void key_press(gua::PipelineDescription& pipe, gua::SceneGraph& graph, int key, 
     break; 
 
 
-    case 'd':
+    case 'n':
        num_screenspace_passes +=1; 
         rebuild_pipe(pipe);   
                       /*if(sigma_d < 10.0){
@@ -289,7 +289,7 @@ void key_press(gua::PipelineDescription& pipe, gua::SceneGraph& graph, int key, 
                        pipe.get_npr_pass()->sigma_d(sigma_d);*/
     break;
 
-    case 'c':
+    case 'm':
       if(num_screenspace_passes > 1){
         num_screenspace_passes -=1; 
           rebuild_pipe(pipe);   
@@ -422,6 +422,9 @@ int main(int argc, char** argv) {
       gua::TriMeshLoader::NORMALIZE_POSITION |
           gua::TriMeshLoader::NORMALIZE_SCALE));
 
+  //---plane----
+  auto plane(trimesh_loader.create_geometry_from_file("plane", "data/objects/plane_4b4.obj", gua::TriMeshLoader::NORMALIZE_POSITION | gua::TriMeshLoader::LOAD_MATERIALS));
+
   //---cat----
    auto cat(trimesh_loader.create_geometry_from_file(
                     "cat", "/home/vajo3185/cat/cat.obj",
@@ -538,7 +541,7 @@ int main(int argc, char** argv) {
 
   simple_geom_scene_transform->translate(screen_offset_x, screen_offset_y, screen_offset_z);
   //teapot->translate(screen_offset_x, screen_offset_y, screen_offset_z);
-  teapot->translate(2.90, 0.0, 0.0);
+  //teapot->translate(2.90, 0.0, 0.0);
   graph.add_node(sponza_scene_transform, sponza);
   graph.add_node(simple_geom_scene_transform, sphere);
   graph.add_node(simple_geom_scene_transform, test_cube_with_trancsparency);
@@ -555,6 +558,7 @@ int main(int argc, char** argv) {
   graph.add_node(plod_transform, plod_tower_7);
   graph.add_node(plod_transform, plod_tower_8);
   graph.add_node(transform, cat);
+  graph.add_node(plod_transform, plane);
   
   /*if(!show_scene_2){
     graph["/transform/plod_transform"]->get_tags().add_tag("invisible");
@@ -597,19 +601,16 @@ int main(int argc, char** argv) {
   auto light_pointer = graph.add_node<gua::node::TransformNode>("/navigation", "light_pointer");
   auto point_light = graph.add_node<gua::node::LightNode>("/navigation/light_pointer", "point_light");
   point_light->data.set_type(gua::node::LightNode::Type::SUN);
-  point_light->data.brightness = 5.0f;
+  point_light->data.brightness = 3.0f;
+  //point_light->data.falloff = 1.5f;
   //point_light->data.brightness = 15.0f;
   point_light->data.color = gua::utils::Color3f(0.2, 1.0, 0.5);
-  //graph.add_node("/navigation/light_pointer", sphere);
+  graph.add_node(point_light, sphere);
 
 
 
   auto screen = graph.add_node<gua::node::ScreenNode>("/navigation", "screen");
-  
-  //tmp for test needs
-  test_cube_with_trancsparency->rotate(45.0, 0.0, 1.0, 0.0);
-  //graph.add_node("/navigation/screen", test_cube_plain);
- 
+   
   
   //physical size of output viewport
 
@@ -641,7 +642,7 @@ int main(int argc, char** argv) {
   camera->config.set_screen_path("/navigation/screen");
   camera->config.set_scene_graph_name("main_scenegraph");
   camera->config.set_output_window_name("main_window");
-  camera->config.set_near_clip(0.1);
+  camera->config.set_near_clip(0.2);
   camera->config.set_far_clip(3000.0);
   camera->config.set_eye_dist(eye_dist);
   camera->config.mask().blacklist.add_tag("invisible");
@@ -738,7 +739,9 @@ int main(int argc, char** argv) {
         auto pointer_target = targets.find(17)->second.transform();
         pointer_target[12] /= 1000.f; pointer_target[13] /= 1000.f; pointer_target[14] /= 1000.f;
         current_cam_tracking_matrix = camera_target;
-        current_pointer_tracking_matrix = pointer_target;
+
+        //gua::math::mat4 screen_world = screen->get_world_transform();
+        current_pointer_tracking_matrix = /*scm::math::inverse(screen_world) */ gua::math::mat4(pointer_target);
         //std::cout << current_cam_tracking_matrix << "\n";
       }
     });
@@ -852,7 +855,11 @@ int main(int argc, char** argv) {
 
     #if (USE_SIDE_BY_SIDE && TRACKING_ENABLED)
     camera->set_transform(current_cam_tracking_matrix);
-    light_pointer->set_transform(current_pointer_tracking_matrix);
+    light_pointer->set_transform(
+                                  //gua::math::mat4(scm::math::make_translation( screen_offset_x, screen_offset_y, screen_offset_z))*
+                                   current_pointer_tracking_matrix 
+                                  //* gua::math::mat4(scm::math::make_translation(-screen_offset_x, -screen_offset_y, -screen_offset_z))
+                                  );
     #endif 
 
     if (window->should_close() || close_window) {

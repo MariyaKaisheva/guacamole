@@ -56,8 +56,14 @@ void main() {
       vec2 tmp_texcoord = vec2( (gl_FragCoord.x + r) / gua_resolution.x, 
                                 (gl_FragCoord.y + c) / gua_resolution.y );
 
-      accumulated_color_x += sobel_x[r +1][c +1]* get_linearized_depth(tmp_texcoord); /* gua_get_normal(tmp_texcoord); /*gua_get_depth(tmp_texcoord);*/  //for toon shading also color_map look up gives good results
-      accumulated_color_y += sobel_y[r +1][c +1]* get_linearized_depth(tmp_texcoord); /* gua_get_normal(tmp_texcoord); /*gua_get_depth(tmp_texcoord);*/
+      //accumulated_color_x += sobel_x[r +1][c +1]* get_linearized_depth(tmp_texcoord);   //for toon shading also color_map look up gives good results
+      //accumulated_color_y += sobel_y[r +1][c +1]* get_linearized_depth(tmp_texcoord); 
+      
+      accumulated_color_x += sobel_x[r +1][c +1]* gua_get_normal(tmp_texcoord); 
+      accumulated_color_y += sobel_y[r +1][c +1]* gua_get_normal(tmp_texcoord);
+      
+      //accumulated_color_x += sobel_x[r +1][c +1]* gua_get_color(tmp_texcoord); 
+      //accumulated_color_y += sobel_y[r +1][c +1]* gua_get_color(tmp_texcoord);
     }
   }
 
@@ -67,7 +73,7 @@ void main() {
 
 
   float depth = gua_get_depth();
-  float outline_treshhold = 0.3; //TODO meaning of the value?! 
+  float outline_treshhold = 2.3; //TODO meaning of the value?! 
   float color_scale_var = 5.0; //color discritisation value
   int kernel_size = 4; //changes the size repeated pattern grid; influences the showerdoor effect; should correspond to dither_mat dimensions
 
