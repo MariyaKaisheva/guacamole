@@ -189,7 +189,7 @@ void key_press(gua::PipelineDescription& pipe, gua::SceneGraph& graph, int key, 
   
   
   bool movement_predicate = false;
-  //std::cout << "scancode: " << scancode << " with action " << action <<"\n";
+  std::cout << "scancode: " << scancode << " with action " << action <<"\n";
 
   if( action != 0 ) {
     movement_predicate = true;
@@ -213,6 +213,10 @@ void key_press(gua::PipelineDescription& pipe, gua::SceneGraph& graph, int key, 
 
   if(90 == scancode){ //Numpad 0 pressed
     reset_position = true;
+  }
+
+  if(9 == scancode){ //'Esc'
+      close_window = true;
   }
 
   //scene switch
@@ -335,10 +339,6 @@ void key_press(gua::PipelineDescription& pipe, gua::SceneGraph& graph, int key, 
     case 'k':
       no_color = !no_color;
       rebuild_pipe(pipe);
-    break;
-
-    case 'q':
-      close_window = true;
     break;
   
    default:
@@ -558,7 +558,7 @@ int main(int argc, char** argv) {
   graph.add_node(plod_transform, plod_tower_7);
   graph.add_node(plod_transform, plod_tower_8);
   graph.add_node(transform, cat);
-  graph.add_node(plod_transform, plane);
+  //graph.add_node(plod_transform, plane);
   
   /*if(!show_scene_2){
     graph["/transform/plod_transform"]->get_tags().add_tag("invisible");
@@ -605,7 +605,7 @@ int main(int argc, char** argv) {
   //point_light->data.falloff = 1.5f;
   //point_light->data.brightness = 15.0f;
   point_light->data.color = gua::utils::Color3f(0.2, 1.0, 0.5);
-  graph.add_node(point_light, sphere);
+  //graph.add_node(point_light, sphere);
 
 
 

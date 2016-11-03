@@ -130,8 +130,8 @@ void main() {
         } 
         else{
            //outline color
-          //gua_out_color = vec3(1.0, 0.0, 0.0);
-         gua_out_color = T.diffuse;
+          gua_out_color = vec3(1.0, 1.0, 1.0);
+        // gua_out_color = T.diffuse;
         }
 
       }     
