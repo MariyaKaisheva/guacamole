@@ -11,6 +11,7 @@ layout(location = 5) in float in_radius;
 layout(location = 6) in vec3 in_normal;
 
 uniform float radius_scaling;
+uniform float max_surfel_radius;
 
 out VertexData {
   vec3 pass_ms_u;
@@ -20,7 +21,7 @@ out VertexData {
 
 void main() {
 
-@include "../common_LOD/PLOD_vertex_pass_through.glsl"
+  @include "../common_LOD/PLOD_vertex_pass_through.glsl"
 
-  VertexOut.pass_normal = normalize((gua_normal_matrix * vec4(in_normal, 0.0)).xyz);
+  VertexOut.pass_normal = in_normal;
 }

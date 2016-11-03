@@ -23,9 +23,10 @@ layout(binding = 3, R32UI) coherent uniform restrict uimage2D fragment_count_img
 //depth buffer substitution image
 layout(binding = 4, R32UI) coherent uniform restrict uimage2D min_es_distance_image;
 
-uniform mat4 inverse_model_matrix;
-uniform mat4 inverse_view_matrix;
+uniform mat4 inverse_transpose_model_view_matrix;
 uniform float radius_scaling;
+uniform float max_surfel_radius;
+uniform bool enable_backface_culling;
 
 out VertexData {
   vec3 pass_ms_u;
@@ -35,8 +36,8 @@ out VertexData {
 
 void main() {
 
-@include "../common_LOD/PLOD_vertex_pass_through.glsl"
-
+  @include "../common_LOD/PLOD_vertex_pass_through.glsl"
+  
   //compute unique surfel index in attribute textures and write attributes
   uint image_width = imageSize(out_surfels_pbr).x;
   uint global_surfel_idx = gl_VertexID;
@@ -44,24 +45,24 @@ void main() {
   uint surfel_image_idx_y =  int(global_surfel_idx / image_width) ;
   ivec2 surfel_pos = ivec2(surfel_image_idx_x, surfel_image_idx_y);
 
-
   float gua_metalness  = 1.0;
   float gua_roughness  = 1.0;
   float gua_emissivity = 0.0; // pass through if unshaded
 
-  //@material_input@
-  //@material_method_calls_frag@
-
   imageStore(out_surfels_pbr, surfel_pos, vec4(gua_metalness, gua_roughness, gua_emissivity, 1.0) );
 
-  vec4 view_normal = inverse_view_matrix * vec4(in_normal, 0.0);
-  vec3 face_forward_normal = normalize( (inverse_model_matrix * vec4(in_normal, 0.0)).xyz );
+  vec4 world_normal = gua_normal_matrix * vec4(in_normal, 0.0);
+  vec4 view_normal  = inverse_transpose_model_view_matrix * vec4(in_normal, 0.0);
 
-  if (view_normal.z < 0.0) {
-    face_forward_normal = -face_forward_normal;
+  if (enable_backface_culling && view_normal.z < 0.0) {
+    VertexOut.pass_ms_u = vec3(0.0);
+    VertexOut.pass_ms_v = vec3(0.0);  
+  } else {
+    float flip_normal = 1.0 - 2.0 * float(view_normal.z < 0.0);
+    world_normal = flip_normal * world_normal;
   }
 
-  imageStore(out_surfels_normal, surfel_pos, vec4( face_forward_normal, 0.0 ) );
+  imageStore(out_surfels_normal, surfel_pos, vec4( normalize(world_normal.xyz), 0.0 ) );
 
   VertexOut.pass_global_surfel_id = global_surfel_idx;
 

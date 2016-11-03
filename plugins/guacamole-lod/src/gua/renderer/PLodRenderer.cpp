@@ -27,6 +27,7 @@
 #include <gua/renderer/HoleFillingSubRenderer.hpp>
 #include <gua/renderer/LinkedListResolveSubRenderer.hpp>
 #include <gua/renderer/LinkedListAccumSubRenderer.hpp>
+#include <gua/renderer/LowQualitySplattingSubRenderer.hpp>
 #include <gua/renderer/ShadowSubRenderer.hpp>
 #include <gua/renderer/NormalizationSubRenderer.hpp>
 #include <gua/renderer/AccumSubRenderer.hpp>
@@ -124,7 +125,7 @@ namespace gua {
   {
     std::shared_ptr<std::vector< std::shared_ptr<PLodSubRenderer> > > HQ_two_pass_splatting_pipeline_ptr = std::make_shared<std::vector< std::shared_ptr<PLodSubRenderer> > >();
     std::shared_ptr<std::vector< std::shared_ptr<PLodSubRenderer> > > LQ_shadow_splatting_pipeline_ptr = std::make_shared<std::vector< std::shared_ptr<PLodSubRenderer> > >();
-
+    std::shared_ptr<std::vector< std::shared_ptr<PLodSubRenderer> > > LQ_one_pass_splatting_pipeline_ptr = std::make_shared<std::vector< std::shared_ptr<PLodSubRenderer> > >();
     std::shared_ptr<std::vector< std::shared_ptr<PLodSubRenderer> > > HQ_linked_list_pipeline_ptr = std::make_shared<std::vector< std::shared_ptr<PLodSubRenderer> > >();
 
     HQ_two_pass_splatting_pipeline_ptr->push_back( std::make_shared<LogToLinSubRenderer>() );
@@ -132,7 +133,9 @@ namespace gua {
     HQ_two_pass_splatting_pipeline_ptr->push_back( std::make_shared<AccumSubRenderer>() );
     HQ_two_pass_splatting_pipeline_ptr->push_back( std::make_shared<NormalizationSubRenderer>() );
 
-    LQ_shadow_splatting_pipeline_ptr->push_back( std::make_shared<ShadowSubRenderer>() );
+    LQ_shadow_splatting_pipeline_ptr->push_back( std::make_shared<DepthSubRenderer>() );
+
+    LQ_one_pass_splatting_pipeline_ptr->push_back(std::make_shared<LowQualitySplattingSubRenderer>());
 
     HQ_linked_list_pipeline_ptr->push_back( std::make_shared<LinkedListAccumSubRenderer>() );
     HQ_linked_list_pipeline_ptr->push_back( std::make_shared<LinkedListResolveSubRenderer>() );
@@ -141,6 +144,7 @@ namespace gua {
     plod_pipelines_[PLodPassDescription::SurfelRenderMode::HQ_TWO_PASS]    = HQ_two_pass_splatting_pipeline_ptr;
     plod_pipelines_[PLodPassDescription::SurfelRenderMode::LQ_SHADOW]      = LQ_shadow_splatting_pipeline_ptr;
     plod_pipelines_[PLodPassDescription::SurfelRenderMode::HQ_LINKED_LIST] = HQ_linked_list_pipeline_ptr;
+    plod_pipelines_[PLodPassDescription::SurfelRenderMode::LQ_ONE_PASS]    = LQ_one_pass_splatting_pipeline_ptr;
   }
 
 
@@ -347,12 +351,10 @@ namespace gua {
     std::unordered_map<node::PLodNode*, lamure::ren::cut*> cut_map;
     std::unordered_map<node::PLodNode*, std::unordered_set<lamure::node_t> > nodes_in_frustum_per_model;
 
-
     for (auto const& object : sorted_objects->second) {
 
       auto plod_node(reinterpret_cast<node::PLodNode*>(object));
       lamure::model_t model_id = controller->deduce_model_id(plod_node->get_geometry_description());
-
 
       auto const& scm_model_matrix = plod_node->get_cached_world_transform();
 
@@ -367,9 +369,26 @@ namespace gua {
       cut_map.insert(std::make_pair(plod_node, &cut));
     }
 
-
     perform_frustum_culling_for_scene(sorted_objects->second, nodes_in_frustum_per_model, cut_map, cut_update_cam, pipe);
 
+    // count splats in cut
+#if 0
+    std::size_t surfels_in_cut = 0;
+    for (auto const& object : sorted_objects->second) {
+
+      auto plod_node(reinterpret_cast<node::PLodNode*>(object));
+      lamure::model_t model_id = controller->deduce_model_id(plod_node->get_geometry_description());
+
+      auto bvh = database->get_model(model_id)->get_bvh();
+      size_t surfels_per_node_of_model = bvh->get_primitives_per_node();
+      
+      lamure::ren::cut& cut = cuts->get_cut(context_id, lamure_view_id, model_id);
+      for (auto const& node_slot_aggregate : cut.complete_set()) {
+        surfels_in_cut += surfels_per_node_of_model;
+      }
+    }
+    std::cout << "Surfels : " << surfels_in_cut << "\n";
+#endif
 
 
     if (!pipe.current_viewstate().shadow_mode) {  //normal rendering branch

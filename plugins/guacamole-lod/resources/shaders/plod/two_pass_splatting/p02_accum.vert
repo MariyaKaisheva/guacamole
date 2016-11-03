@@ -16,7 +16,7 @@ layout (location = 6) in vec3 in_normal;
 
 uniform uint gua_material_id;
 uniform float radius_scaling;
-uniform mat4 inverse_model_matrix;
+uniform float max_surfel_radius;
 
 out VertexData {
   //output to geometry shader
@@ -32,5 +32,5 @@ void main() {
   @include "../common_LOD/PLOD_vertex_pass_through.glsl"
 
   VertexOut.pass_point_color = vec3(in_r, in_g, in_b);
-  VertexOut.pass_normal = normalize( (inverse_model_matrix * vec4(in_normal, 0.0)).xyz);
+  VertexOut.pass_normal = in_normal;
 }
