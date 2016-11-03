@@ -97,6 +97,7 @@ void mouse_button(gua::utils::Trackball& trackball,
 }
 
 ////golbal variables
+float error_threshold = 5.7f; //for point cloud models
 bool close_window = false;
 bool show_scene_1 = true;
 bool show_scene_2 = true;
@@ -189,7 +190,7 @@ void key_press(gua::PipelineDescription& pipe, gua::SceneGraph& graph, int key, 
   
   
   bool movement_predicate = false;
-  std::cout << "scancode: " << scancode << " with action " << action <<"\n";
+  //std::cout << "scancode: " << scancode << " with action " << action <<"\n";
 
   if( action != 0 ) {
     movement_predicate = true;
@@ -211,7 +212,15 @@ void key_press(gua::PipelineDescription& pipe, gua::SceneGraph& graph, int key, 
     moves_negative_x = movement_predicate;
   }
 
-  if(90 == scancode){ //Numpad 0 pressed
+  if(24 == scancode){ // 'q' 
+    moves_positive_y = movement_predicate;
+  }
+  
+  if(26 == scancode){ // 'e' 
+    moves_negative_y = movement_predicate;
+  }
+
+  if(90 == scancode){ //Numpad 0 
     reset_position = true;
   }
 
@@ -339,6 +348,18 @@ void key_press(gua::PipelineDescription& pipe, gua::SceneGraph& graph, int key, 
     case 'k':
       no_color = !no_color;
       rebuild_pipe(pipe);
+    break;
+
+    case 'z':
+      if(error_threshold <= 60.5){
+        error_threshold += 10.0;
+      }
+    break;
+
+    case 'x':
+      if(error_threshold >= 10.0){
+        error_threshold -= 10.0;
+      }
     break;
   
    default:
@@ -509,7 +530,10 @@ int main(int argc, char** argv) {
    plod_transform->translate(50.0, 0.0, 15.0);
    plod_transform->scale(0.09);
    float scale_value = 0.7f;
-   plod_head->set_radius_scale(scale_value);
+   
+   //plod_head->set_radius_scale(scale_value);
+  
+
    plod_tower->set_radius_scale(scale_value);
    plod_tower_2->set_radius_scale(scale_value);
    plod_tower_3->set_radius_scale(scale_value);
@@ -842,11 +866,19 @@ int main(int argc, char** argv) {
   } 
 
   if( moves_positive_x ) {
-    translation_matrix = scm::math::make_translation(forward_vector * amount) * translation_matrix;
+    translation_matrix = scm::math::make_translation(forward_vector * amount/2) * translation_matrix;
   }
 
   if( moves_negative_x ) {
-    translation_matrix = scm::math::make_translation(backward_vector *amount) * translation_matrix;
+    translation_matrix = scm::math::make_translation(backward_vector * amount/2) * translation_matrix;
+  } 
+
+  if( moves_positive_y ) {
+    translation_matrix = scm::math::make_translation(up_vector * amount/2) * translation_matrix;
+  }
+
+  if( moves_negative_y ) {
+    translation_matrix = scm::math::make_translation(down_vector * amount/2) * translation_matrix;
   } 
     
     auto nav_transform = translation_matrix * viewmatrix;
@@ -861,6 +893,17 @@ int main(int argc, char** argv) {
                                   //* gua::math::mat4(scm::math::make_translation(-screen_offset_x, -screen_offset_y, -screen_offset_z))
                                   );
     #endif 
+
+
+    ////////updated Plod error threshold on key press
+    plod_tower->set_error_threshold(error_threshold);
+    plod_tower_2->set_error_threshold(error_threshold);
+    plod_tower_3->set_error_threshold(error_threshold);
+    plod_tower_4->set_error_threshold(error_threshold);
+    plod_tower_5->set_error_threshold(error_threshold);
+    plod_tower_6->set_error_threshold(error_threshold);
+    plod_tower_7->set_error_threshold(error_threshold);
+    plod_tower_8->set_error_threshold(error_threshold);
 
     if (window->should_close() || close_window) {
       renderer.stop();
