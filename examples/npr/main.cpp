@@ -59,7 +59,7 @@
 #define USE_ANAGLYPH 0
 #define USE_MONO 0 
 
-#define TRACKING_ENABLED 1
+#define TRACKING_ENABLED 0
 
 #define USE_TOON_RESOLVE_PASS 0
 
@@ -109,6 +109,8 @@ bool moves_positive_x = false;
 bool moves_negative_x = false;
 bool reset_position = false;
 
+auto surfel_render_mode = gua::PLodPassDescription::SurfelRenderMode::HQ_TWO_PASS; 
+auto Plod_pass = std::make_shared<gua::PLodPassDescription>();
 bool use_toon_resolve_pass = false; 
 bool apply_bilateral_filter = false;
 bool apply_halftoning_effect = false; 
@@ -127,6 +129,10 @@ int num_screenspace_passes = 1;
 float screen_width = 0.595f;
 float screen_height = 0.3346f;
 //float screen_distance = 0.6f;
+
+//pysical screen size to be used mono-view mode 
+//float mono_scree_width = 0.59;
+//float mono_scree_width = 0.35;
 
 float screen_offset_x = 3.192f;
 float screen_offset_y = 1.2125f;
@@ -147,7 +153,13 @@ int   window_height = 1440;
 void rebuild_pipe(gua::PipelineDescription& pipe) {
   pipe.clear();
   pipe.add_pass(std::make_shared<gua::TriMeshPassDescription>());
-  pipe.add_pass(std::make_shared<gua::PLodPassDescription>());
+  //auto Plod_pass = std::make_shared<gua::PLodPassDescription>();
+
+  Plod_pass->mode(surfel_render_mode);
+  Plod_pass->touch();
+  pipe.add_pass(Plod_pass);
+  //std::cout << surfel_render_mode << "\n";
+  //pipe.add_pass(std::make_shared<gua::PLodPassDescription>());
  //pipe.add_pass(std::make_shared<gua::SkeletalAnimationPassDescription>()); 
   pipe.add_pass(std::make_shared<gua::LightVisibilityPassDescription>());
 
@@ -170,6 +182,7 @@ void rebuild_pipe(gua::PipelineDescription& pipe) {
   }
   
   if (create_screenspace_outlines || apply_halftoning_effect){
+  // pipe.get_pass_by_type()->mode(1);
    pipe.add_pass(std::make_shared<gua::NprOutlinePassDescription>());
    pipe.get_npr_outline_pass()->halftoning(apply_halftoning_effect);
    pipe.get_npr_outline_pass()->apply_outline(create_screenspace_outlines);
@@ -261,6 +274,17 @@ void key_press(gua::PipelineDescription& pipe, gua::SceneGraph& graph, int key, 
     graph["/transform/simple_geom_scene_transform"]->get_tags().remove_tag("invisible");
   }
  
+  //surfel rende modes
+  if(14 == scancode && action == 1){ // '5'
+    surfel_render_mode = gua::PLodPassDescription::SurfelRenderMode::LQ_ONE_PASS;
+    rebuild_pipe(pipe);
+  }
+
+  if(15 == scancode && action == 1){ // '6'
+    surfel_render_mode = gua::PLodPassDescription::SurfelRenderMode::HQ_TWO_PASS;
+    rebuild_pipe(pipe);
+  }
+
   if (action == 0) return;
   switch(std::tolower(key)){
 
