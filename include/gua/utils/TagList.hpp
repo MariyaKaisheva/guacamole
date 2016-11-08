@@ -47,6 +47,7 @@ class GUA_DLL TagList {
 
     void remove_tag(std::string const& tag);
     void remove_tags(std::vector<std::string> const& tags);
+    bool has_tag(std::string const& tag) const;
 
     void clear_tags();
 
