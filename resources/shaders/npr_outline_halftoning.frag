@@ -65,11 +65,11 @@ void main() {
       vec2 tmp_texcoord = vec2( (gl_FragCoord.x + r) / gua_resolution.x, 
                                 (gl_FragCoord.y + c) / gua_resolution.y );
 
-      accumulated_color_x += sobel_x[r +1][c +1]* get_linearized_depth(tmp_texcoord);   //for toon shading also color_map look up gives good results
-      accumulated_color_y += sobel_y[r +1][c +1]* get_linearized_depth(tmp_texcoord); 
+      //accumulated_color_x += sobel_x[r +1][c +1]* get_linearized_depth(tmp_texcoord);   //for toon shading also color_map look up gives good results
+      //accumulated_color_y += sobel_y[r +1][c +1]* get_linearized_depth(tmp_texcoord); 
       
-      //accumulated_color_x += sobel_x[r +1][c +1]* gua_get_normal(tmp_texcoord); 
-     // accumulated_color_y += sobel_y[r +1][c +1]* gua_get_normal(tmp_texcoord);
+      accumulated_color_x += sobel_x[r +1][c +1]* gua_get_normal(tmp_texcoord); 
+                                                                                accumulated_color_y += sobel_y[r +1][c +1]* gua_get_normal(tmp_texcoord);
       
       //accumulated_color_x += sobel_x[r +1][c +1]* gua_get_color(tmp_texcoord); 
       //accumulated_color_y += sobel_y[r +1][c +1]* gua_get_color(tmp_texcoord);
