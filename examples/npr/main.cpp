@@ -563,7 +563,6 @@ int main(int argc, char** argv) {
    
    //plod_head->set_radius_scale(scale_value);
   
-
    plod_tower->set_radius_scale(scale_value);
    plod_tower_2->set_radius_scale(scale_value);
    plod_tower_3->set_radius_scale(scale_value);
@@ -572,6 +571,19 @@ int main(int argc, char** argv) {
    plod_tower_6->set_radius_scale(scale_value);
    plod_tower_7->set_radius_scale(scale_value);
    plod_tower_8->set_radius_scale(scale_value);
+
+   //tmp texture for point cloud npr test
+    //gua::TextureDatabase::instance()->load("data/textures/important_texture.jpg");
+    //auto tex = gua::TextureDatabase::instance()->lookup("data/textures/important_texture.jpg");
+    auto tex = std::string("data/textures/black_stroke.png");
+    plod_tower->set_texture(tex);
+    plod_tower_2->set_texture(tex);
+    plod_tower_3->set_texture(tex);
+    plod_tower_4->set_texture(tex);
+    plod_tower_5->set_texture(tex);
+    plod_tower_6->set_texture(tex);
+    plod_tower_7->set_texture(tex);
+    plod_tower_8->set_texture(tex);
 
    simple_geom_scene_transform->translate(0.20, 0.0, 0.0);
    //simple_geom_scene_transform->scale(2.5);
@@ -932,19 +944,6 @@ int main(int argc, char** argv) {
     plod_tower_6->set_error_threshold(error_threshold);
     plod_tower_7->set_error_threshold(error_threshold);
     plod_tower_8->set_error_threshold(error_threshold);
-
-    //tmp texture for point cloud npr test
-  //auto surfel_texture = gua::Texture2D::Texture2D ("data/textures/colored_grid.png");
-    gua::TextureDatabase::instance()->load("data/textures/important_texture.jpg");
-    auto tex = gua::TextureDatabase::instance()->lookup("data/textures/important_texture.jpg");
-    plod_tower->set_texture(tex);
-    plod_tower_2->set_texture(tex);
-    plod_tower_3->set_texture(tex);
-    plod_tower_4->set_texture(tex);
-    plod_tower_5->set_texture(tex);
-    plod_tower_6->set_texture(tex);
-    plod_tower_7->set_texture(tex);
-    plod_tower_8->set_texture(tex);
 
     if (window->should_close() || close_window) {
       renderer.stop();
