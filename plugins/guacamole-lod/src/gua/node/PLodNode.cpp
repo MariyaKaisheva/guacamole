@@ -42,6 +42,7 @@ PLodNode::PLodNode(std::string const& name,
                    std::string const& geometry_description,
                    std::string const& geometry_file_path,
                    std::shared_ptr<Material> const& material,
+                   std::shared_ptr<Texture> const& texture,
                    math::mat4 const& transform,
                    float const max_surfel_size,
                    float const scale,
@@ -53,6 +54,7 @@ PLodNode::PLodNode(std::string const& name,
       geometry_description_(geometry_description),
       geometry_file_path_(geometry_file_path),
       material_(material),
+      texture_(texture),
       radius_scale_(scale),
       max_surfel_size_(max_surfel_size),
       error_threshold_(threshold),
@@ -104,6 +106,17 @@ std::shared_ptr<Material> const& PLodNode::get_material() const {
 void PLodNode::set_material(std::shared_ptr<Material> const& material) {
   material_ = material;
   material_changed_ = self_dirty_ = true;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+std::shared_ptr<Texture> const& PLodNode::get_texture() const {
+  return texture_;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+void PLodNode::set_texture(std::shared_ptr<Texture> const& texture) {
+  texture_ = texture;
+ // texture_changed_ = self_dirty_ = true;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -278,8 +291,7 @@ std::shared_ptr<Node> PLodNode::copy() const {
   result->radius_scale_ = radius_scale_;
   result->max_surfel_size_ = max_surfel_size_;
   result->error_threshold_ = error_threshold_;
-  result->enable_backface_culling_by_normal_ =
-      enable_backface_culling_by_normal_;
+  result->enable_backface_culling_by_normal_ = enable_backface_culling_by_normal_;
 
   return result;
 }

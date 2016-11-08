@@ -49,6 +49,12 @@
 #include <gua/node/PLodNode.hpp> 
 #include <gua/node/TriMeshNode.hpp>
 
+
+//tmp
+#include <gua/renderer/Texture2D.hpp> 
+#include <gua/databases/TextureDatabase.hpp>
+//tmp
+
 #include <gua/renderer/PBSMaterialFactory.hpp> 
 
 //#define USE_ASUS_3D_WORKSTATION 1
@@ -59,7 +65,7 @@
 #define USE_ANAGLYPH 0
 #define USE_MONO 0 
 
-#define TRACKING_ENABLED 0
+#define TRACKING_ENABLED 1
 
 #define USE_TOON_RESOLVE_PASS 0
 
@@ -375,7 +381,7 @@ void key_press(gua::PipelineDescription& pipe, gua::SceneGraph& graph, int key, 
     break;
 
     case 'z':
-      if(error_threshold <= 60.5){
+      if(error_threshold <= 100.0){
         error_threshold += 10.0;
       }
     break;
@@ -500,8 +506,8 @@ int main(int argc, char** argv) {
 
   auto lod_rough = lod_keep_color_shader->make_new_material();
   lod_rough->set_uniform("metalness", 0.0f);
-  lod_rough->set_uniform("roughness", 1.0f);
-  lod_rough->set_uniform("emissivity", 1.0f);
+  lod_rough->set_uniform("roughness", 0.6f);
+  lod_rough->set_uniform("emissivity", 0.0f);
 
 
    //---point cloud---   
@@ -631,8 +637,6 @@ int main(int argc, char** argv) {
   #else
   resolution = gua::math::vec2ui(1920, 1080);
   #endif
-
-
 
   #if USE_TOON_RESOLVE_PASS
     auto npr_resolve_pass = std::make_shared<gua::ToonResolvePassDescription>();
@@ -928,6 +932,19 @@ int main(int argc, char** argv) {
     plod_tower_6->set_error_threshold(error_threshold);
     plod_tower_7->set_error_threshold(error_threshold);
     plod_tower_8->set_error_threshold(error_threshold);
+
+    //tmp texture for point cloud npr test
+  //auto surfel_texture = gua::Texture2D::Texture2D ("data/textures/colored_grid.png");
+    gua::TextureDatabase::instance()->load("data/textures/important_texture.jpg");
+    auto tex = gua::TextureDatabase::instance()->lookup("data/textures/important_texture.jpg");
+    plod_tower->set_texture(tex);
+    plod_tower_2->set_texture(tex);
+    plod_tower_3->set_texture(tex);
+    plod_tower_4->set_texture(tex);
+    plod_tower_5->set_texture(tex);
+    plod_tower_6->set_texture(tex);
+    plod_tower_7->set_texture(tex);
+    plod_tower_8->set_texture(tex);
 
     if (window->should_close() || close_window) {
       renderer.stop();

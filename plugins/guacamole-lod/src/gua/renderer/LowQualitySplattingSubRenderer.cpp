@@ -26,6 +26,9 @@
 
 #include <lamure/ren/controller.h>
 
+#include <gua/renderer/GBuffer.hpp>
+//#include <gua/renderer/Texture2D.hpp> 
+
 namespace gua {
 
   LowQualitySplattingSubRenderer::LowQualitySplattingSubRenderer() : PLodSubRenderer(){
@@ -164,6 +167,16 @@ namespace gua {
     current_material_shader->apply_uniform(ctx, "radius_scaling", plod_node->get_radius_scale());
     current_material_shader->apply_uniform(ctx, "max_surfel_radius", plod_node->get_max_surfel_radius());
     current_material_shader->apply_uniform(ctx, "enable_backface_culling", plod_node->get_enable_backface_culling_by_normal());
+
+    //tmp
+    //UniformValue tex(plod_node->get_texture());
+    //auto tex = plod_node->get_texture();
+    // gua::Texture("data/textures/colored_grid.png");
+    //auto& target = *pipe.current_viewstate().target; 
+    //ToMe: get_normal_buffer() returns std::shared_ptr<Texture2D>
+    auto tex = plod_node->get_texture()->gua::Texture::get_handle(ctx);
+    current_material_shader->apply_uniform(ctx, "gua_in_texture", tex);
+    //tmp
   }
 
 } //namespace gua

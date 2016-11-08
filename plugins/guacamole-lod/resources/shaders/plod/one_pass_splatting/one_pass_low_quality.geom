@@ -73,7 +73,7 @@ void main()
 
 
   // generate triangle strip
-  //  idx2(1/-1)----------idx3(1/-1)
+  //  idx2(-1/1)----------idx3(1/1)
   //    |       \              |
   //    |           \          |
   //    |               \      |

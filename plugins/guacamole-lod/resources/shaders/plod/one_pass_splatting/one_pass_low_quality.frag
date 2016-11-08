@@ -27,7 +27,7 @@ in VertexData {
 ///////////////////////////////////////////////////////////////////////////////
 @include "common/gua_camera_uniforms.glsl"
 @material_uniforms@
-
+uniform uvec2 gua_in_texture; //tmp
 layout(binding=0) uniform sampler2D p01_linear_depth_texture;
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -53,7 +53,22 @@ void main()
   @material_input@
   @include "common/gua_global_variable_assignment.glsl"
 
-  gua_color      = pow(VertexIn.pass_color, vec3(1.4));
+  vec2 normalized_tex_coords = (uv_coords + 1.0) / 2.0;
+
+  vec4 looked_up_color = texture2D(sampler2D(gua_in_texture), normalized_tex_coords );
+  
+  //squirel shape
+  if( looked_up_color.g > looked_up_color.r && looked_up_color.g > looked_up_color.b 
+      && looked_up_color.g - looked_up_color.r >= 20.0/255.0 && looked_up_color.g - looked_up_color.b >= 20.0/255.0)  {
+    discard;
+  }
+
+  /*if(texture2D(sampler2D(gua_in_texture), normalized_tex_coords ).a < 0.5){
+    discard;
+  }*/
+
+  gua_color = vec3(texture2D(sampler2D(gua_in_texture), normalized_tex_coords).xyz);
+  //gua_color      = pow(VertexIn.pass_color, vec3(1.4));
   gua_normal     = VertexIn.pass_normal;
   gua_metalness  = 0.0;
   gua_roughness  = 1.0;

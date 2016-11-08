@@ -26,6 +26,7 @@
 #include <exception>
 #include <gua/renderer/Lod.hpp>
 #include <gua/renderer/Material.hpp>
+#include <gua/renderer/Texture2D.hpp>
 
 #include <gua/node/GeometryNode.hpp>
 
@@ -53,6 +54,7 @@ public:
            std::string const& geometry_description = "gua_default_geometry",
            std::string const& geometry_file_path = "gua_no_path_specified",
            std::shared_ptr<Material> const& material = std::shared_ptr<Material>(),
+           std::shared_ptr<Texture> const& texture = std::shared_ptr<Texture2D>(), //Texture2D("data/textures/colored_grid.png")
            math::mat4 const& transform = math::mat4::identity(),
            float const max_surfel_size = 0.2f,
            float const radius_scale = 1.0f,
@@ -75,6 +77,9 @@ public:  // methods
   std::shared_ptr<Material> const& get_material() const;
   void               set_material(std::shared_ptr<Material> const& material);
 
+  std::shared_ptr<Texture> const& get_texture() const;
+  void               set_texture(std::shared_ptr<Texture> const& texture);
+
   float              get_radius_scale() const;
   void               set_radius_scale(float scale);
 
@@ -86,6 +91,8 @@ public:  // methods
 
   bool               get_enable_backface_culling_by_normal() const;
   void               set_enable_backface_culling_by_normal(bool const enable_backface_culling);
+
+
 
 public:
   /**
@@ -115,6 +122,8 @@ private:  // attributes e.g. special attributes for drawing
 
   std::shared_ptr<Material>     material_;
   bool                          material_changed_;
+
+  std::shared_ptr<Texture>    texture_;
 
   float                         radius_scale_;
   float                         max_surfel_size_;
