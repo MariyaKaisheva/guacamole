@@ -142,7 +142,8 @@ void Trackball::motion(int x, int y)
     double angle_y = (mapping_rotate_ * double(mousepos_x_ - x));
     double angle_x = (mapping_rotate_ * double(mousepos_y_ - y));
 
-    rotation_euler_ = scm::math::make_rotation(angle_x, scm::math::vec3d(1, 0, 0)) * rotation_euler_;
+    //rotation_euler_ = scm::math::make_rotation(angle_x, scm::math::vec3d(1, 0, 0)) * rotation_euler_;
+    rotation_euler_ = scm::math::make_rotation(angle_x, scm::math::vec3d(0, 0, 1)) * rotation_euler_; //test fix 
     rotation_euler_ = scm::math::make_rotation(angle_y, scm::math::vec3d(0, 1, 0)) * rotation_euler_;
   }
 

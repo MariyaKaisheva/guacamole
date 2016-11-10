@@ -65,7 +65,7 @@
 #define USE_ANAGLYPH 0
 #define USE_MONO 0 
 
-#define TRACKING_ENABLED 1
+#define TRACKING_ENABLED 0
 
 #define USE_TOON_RESOLVE_PASS 0
 
@@ -103,7 +103,9 @@ void mouse_button(gua::utils::Trackball& trackball,
 }
 
 ////golbal variables
-float error_threshold = 5.7f; //for point cloud models
+std::string textrue_file_path = "data/textures/important_texture.jpg";
+float error_threshold = 3.7f; //for point cloud models
+float radius_scale = 0.7f;  //for point cloud models
 bool close_window = false;
 bool show_scene_1 = true;
 bool show_scene_2 = true;
@@ -116,7 +118,7 @@ bool moves_negative_x = false;
 bool reset_position = false;
 
 auto surfel_render_mode = gua::PLodPassDescription::SurfelRenderMode::HQ_TWO_PASS; 
-auto Plod_pass = std::make_shared<gua::PLodPassDescription>();
+auto plod_pass = std::make_shared<gua::PLodPassDescription>();
 bool use_toon_resolve_pass = false; 
 bool apply_bilateral_filter = false;
 bool apply_halftoning_effect = false; 
@@ -159,11 +161,16 @@ int   window_height = 1440;
 void rebuild_pipe(gua::PipelineDescription& pipe) {
   pipe.clear();
   pipe.add_pass(std::make_shared<gua::TriMeshPassDescription>());
-  //auto Plod_pass = std::make_shared<gua::PLodPassDescription>();
+  //auto plod_pass = std::make_shared<gua::PLodPassDescription>();
 
-  Plod_pass->mode(surfel_render_mode);
-  Plod_pass->touch();
-  pipe.add_pass(Plod_pass);
+  plod_pass->mode(surfel_render_mode);
+  plod_pass->touch();
+
+  /*if(surfel_render_mode == gua::PLodPassDescription::SurfelRenderMode::LQ_ONE_PASS){
+    plod_pass->discard_mode(fragment_discard_mode);
+  }*/
+
+  pipe.add_pass(plod_pass);
   //std::cout << surfel_render_mode << "\n";
   //pipe.add_pass(std::make_shared<gua::PLodPassDescription>());
  //pipe.add_pass(std::make_shared<gua::SkeletalAnimationPassDescription>()); 
@@ -241,6 +248,8 @@ void key_press(gua::PipelineDescription& pipe, gua::SceneGraph& graph, int key, 
 
   if(90 == scancode){ //Numpad 0 
     reset_position = true;
+    error_threshold = 3.7f; 
+    radius_scale = 0.7f;
   }
 
   if(9 == scancode){ //'Esc'
@@ -381,16 +390,53 @@ void key_press(gua::PipelineDescription& pipe, gua::SceneGraph& graph, int key, 
     break;
 
     case 'z':
-      if(error_threshold <= 100.0){
-        error_threshold += 10.0;
+      if(error_threshold <= 200.0){
+        error_threshold += 2.0;
       }
     break;
 
     case 'x':
-      if(error_threshold >= 10.0){
-        error_threshold -= 10.0;
+      if(error_threshold >= 2.0){
+        error_threshold -= 2.0;
       }
     break;
+
+     case 'u':
+      if(radius_scale <= 20.0){
+        radius_scale += 0.2;
+      }
+    break;
+
+    case 'j':
+      if(radius_scale >= 0.3){
+        radius_scale -= 0.2;
+      }
+    break;
+
+    case '7':
+      textrue_file_path = "data/textures/black_stroke.png";
+      //fragment_discard_mode =
+      //rebuild_pipe(pipe);
+    break;
+
+    case '8':
+      textrue_file_path = "data/textures/dark_red.png";
+      //fragment_discard_mode =
+      //rebuild_pipe(pipe);
+    break;
+
+     case '9':
+      textrue_file_path = "data/textures/stripes.png";
+      //fragment_discard_mode =
+      //rebuild_pipe(pipe);
+    break;
+
+     case '0':
+      textrue_file_path = "data/textures/PB.png";
+      //fragment_discard_mode =
+      //rebuild_pipe(pipe);
+    break;
+
   
    default:
     break;
@@ -557,33 +603,28 @@ int main(int argc, char** argv) {
    plod_transform->rotate(-180, 1.0, 0.0, 0.0);
    plod_transform->rotate(-120, 0.0, 1.0, 0.0);
    plod_transform->translate(0.0, 14.0, 0.0);
-   plod_transform->translate(50.0, 0.0, 15.0);
-   plod_transform->scale(0.09);
-   float scale_value = 0.7f;
+   //plod_transform->translate(50.0, 0.0, 15.0);
+   plod_transform->translate(70.0, -4.0, 5.0);
+   plod_transform->scale(0.08);
+   //float scale_value = 0.7f;
+
+   //hide mesh-geometry//////////////
+    graph["/transform/sponza_scene_transform"]->get_tags().add_tag("invisible");
+    graph["/transform/simple_geom_scene_transform"]->get_tags().add_tag("invisible");
+   /////////////////////////////////
    
    //plod_head->set_radius_scale(scale_value);
   
-   plod_tower->set_radius_scale(scale_value);
-   plod_tower_2->set_radius_scale(scale_value);
-   plod_tower_3->set_radius_scale(scale_value);
-   plod_tower_4->set_radius_scale(scale_value);
-   plod_tower_5->set_radius_scale(scale_value);
-   plod_tower_6->set_radius_scale(scale_value);
-   plod_tower_7->set_radius_scale(scale_value);
-   plod_tower_8->set_radius_scale(scale_value);
+   /*plod_tower->set_radius_scale(radius_scale);
+   plod_tower_2->set_radius_scale(radius_scale);
+   plod_tower_3->set_radius_scale(radius_scale);
+   plod_tower_4->set_radius_scale(radius_scale);
+   plod_tower_5->set_radius_scale(radius_scale);
+   plod_tower_6->set_radius_scale(radius_scale);
+   plod_tower_7->set_radius_scale(radius_scale);
+   plod_tower_8->set_radius_scale(radius_scale);*/
 
-   //tmp texture for point cloud npr test
-    //gua::TextureDatabase::instance()->load("data/textures/important_texture.jpg");
-    //auto tex = gua::TextureDatabase::instance()->lookup("data/textures/important_texture.jpg");
-    auto tex = std::string("data/textures/black_stroke.png");
-    plod_tower->set_texture(tex);
-    plod_tower_2->set_texture(tex);
-    plod_tower_3->set_texture(tex);
-    plod_tower_4->set_texture(tex);
-    plod_tower_5->set_texture(tex);
-    plod_tower_6->set_texture(tex);
-    plod_tower_7->set_texture(tex);
-    plod_tower_8->set_texture(tex);
+  
 
    simple_geom_scene_transform->translate(0.20, 0.0, 0.0);
    //simple_geom_scene_transform->scale(2.5);
@@ -613,7 +654,7 @@ int main(int argc, char** argv) {
   graph.add_node(simple_geom_scene_transform, test_cube_with_trancsparency);
   graph.add_node(simple_geom_scene_transform, test_cube_plain);
   graph.add_node(simple_geom_scene_transform, test_cube_with_colors);
-  //graph.add_node(transform, plod_head);
+  graph.add_node(transform, plod_head);
 
   graph.add_node(plod_transform, plod_tower);
   graph.add_node(plod_transform, plod_tower_2);
@@ -623,7 +664,7 @@ int main(int argc, char** argv) {
   graph.add_node(plod_transform, plod_tower_6);
   graph.add_node(plod_transform, plod_tower_7);
   graph.add_node(plod_transform, plod_tower_8);
-  graph.add_node(transform, cat);
+  //graph.add_node(transform, cat);
   //graph.add_node(plod_transform, plane);
   
   /*if(!show_scene_2){
@@ -936,6 +977,7 @@ int main(int argc, char** argv) {
 
 
     ////////updated Plod error threshold on key press
+    plod_head->set_error_threshold(error_threshold);
     plod_tower->set_error_threshold(error_threshold);
     plod_tower_2->set_error_threshold(error_threshold);
     plod_tower_3->set_error_threshold(error_threshold);
@@ -944,6 +986,30 @@ int main(int argc, char** argv) {
     plod_tower_6->set_error_threshold(error_threshold);
     plod_tower_7->set_error_threshold(error_threshold);
     plod_tower_8->set_error_threshold(error_threshold);
+
+    ////////updated Plod surfel radius on key press
+    plod_tower->set_radius_scale(radius_scale);
+    plod_tower_2->set_radius_scale(radius_scale);
+    plod_tower_3->set_radius_scale(radius_scale);
+    plod_tower_4->set_radius_scale(radius_scale);
+    plod_tower_5->set_radius_scale(radius_scale);
+    plod_tower_6->set_radius_scale(radius_scale);
+    plod_tower_7->set_radius_scale(radius_scale);
+    plod_tower_8->set_radius_scale(radius_scale);
+
+     //tmp texture for point cloud npr test
+    gua::TextureDatabase::instance()->load(textrue_file_path);
+    auto tex = gua::TextureDatabase::instance()->lookup(textrue_file_path);
+    //auto tex = std::string("data/textures/black_stroke.png");
+    plod_head->set_texture(tex);
+    plod_tower->set_texture(tex);
+    plod_tower_2->set_texture(tex);
+    plod_tower_3->set_texture(tex);
+    plod_tower_4->set_texture(tex);
+    plod_tower_5->set_texture(tex);
+    plod_tower_6->set_texture(tex);
+    plod_tower_7->set_texture(tex);
+    plod_tower_8->set_texture(tex);
 
     if (window->should_close() || close_window) {
       renderer.stop();
