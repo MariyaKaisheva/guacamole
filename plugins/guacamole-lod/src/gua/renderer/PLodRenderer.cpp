@@ -121,7 +121,8 @@ namespace gua {
   PLodRenderer::PLodRenderer() : 
                                  gpu_resources_already_created_(false),
                                  current_rendertarget_width_(0),
-                                 current_rendertarget_height_(0)
+                                 current_rendertarget_height_(0)//,
+                                 //freeze_cut_update_(false)
   {
     std::shared_ptr<std::vector< std::shared_ptr<PLodSubRenderer> > > HQ_two_pass_splatting_pipeline_ptr = std::make_shared<std::vector< std::shared_ptr<PLodSubRenderer> > >();
     std::shared_ptr<std::vector< std::shared_ptr<PLodSubRenderer> > > LQ_shadow_splatting_pipeline_ptr = std::make_shared<std::vector< std::shared_ptr<PLodSubRenderer> > >();
@@ -271,7 +272,6 @@ namespace gua {
       }
     }
   }
-
   ///////////////////////////////////////////////////////////////////////////////
   void PLodRenderer::render(gua::Pipeline& pipe, PipelinePassDescription const& desc) {
 
@@ -416,10 +416,14 @@ namespace gua {
     pipe.end_cpu_query(cpu_query_name_plod_total); 
     
     //dispatch cut updates
-    if (previous_frame_count_ != ctx.framecount) {
-      previous_frame_count_ = ctx.framecount;
-      controller->dispatch(controller->deduce_context_id(ctx.id), ctx.render_device);
-    }
-  } 
-
+    for (auto const& object : sorted_objects->second) {
+    auto plod_node(reinterpret_cast<node::PLodNode*>(object));
+      if(!plod_node->get_cut_dispatch()){
+        if (previous_frame_count_ != ctx.framecount) {
+          previous_frame_count_ = ctx.framecount;
+          controller->dispatch(controller->deduce_context_id(ctx.id), ctx.render_device);
+        }
+      }
+    } 
+  }
 }

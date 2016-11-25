@@ -58,7 +58,7 @@ PLodNode::PLodNode(std::string const& name,
       radius_scale_(scale),
       max_surfel_size_(max_surfel_size),
       error_threshold_(threshold),
-      enable_backface_culling_by_normal_(enable_backface_culling_by_normal) {
+      enable_backface_culling_by_normal_(enable_backface_culling_by_normal){
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -158,6 +158,18 @@ void PLodNode::set_error_threshold(float threshold) {
 void PLodNode::set_enable_backface_culling_by_normal(
     bool const enable_backface_culling) {
   enable_backface_culling_by_normal_ = enable_backface_culling;
+  self_dirty_ = true;
+}
+
+//////////////////////////////////////////////////////////////////////////////// 
+bool PLodNode::freeze_cut_update_ = false;
+bool PLodNode::get_cut_dispatch(){
+  return freeze_cut_update_;
+}
+////////////////////////////////////////////////////////////////////////////////
+void PLodNode::set_cut_dispatch(
+    bool const freeze_cut_update) {
+  freeze_cut_update_ = freeze_cut_update;
   self_dirty_ = true;
 }
 

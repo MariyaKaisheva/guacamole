@@ -61,8 +61,8 @@
 #define USE_LOW_RES_WORKSTATION 0
 
 //#define USE_QUAD_BUFFERED 0//seems to not work anymore
-#define USE_SIDE_BY_SIDE 1
-#define USE_ANAGLYPH 0
+#define USE_SIDE_BY_SIDE 0
+#define USE_ANAGLYPH 1
 #define USE_MONO 0 
 
 #define TRACKING_ENABLED 0
@@ -106,6 +106,7 @@ void mouse_button(gua::utils::Trackball& trackball,
 std::string textrue_file_path = "data/textures/important_texture.jpg";
 float error_threshold = 3.7f; //for point cloud models
 float radius_scale = 0.7f;  //for point cloud models
+bool freeze_cut_update = false; //for lod models
 bool close_window = false;
 bool show_scene_1 = true;
 bool show_scene_2 = true;
@@ -116,6 +117,7 @@ bool moves_negative_y = false;
 bool moves_positive_x = false;
 bool moves_negative_x = false;
 bool reset_position = false;
+//bool PLodNode::freeze_cut_update = false;
 
 auto surfel_render_mode = gua::PLodPassDescription::SurfelRenderMode::HQ_TWO_PASS; 
 auto plod_pass = std::make_shared<gua::PLodPassDescription>();
@@ -413,6 +415,10 @@ void key_press(gua::PipelineDescription& pipe, gua::SceneGraph& graph, int key, 
       }
     break;
 
+    case 'f':
+      freeze_cut_update = !freeze_cut_update;
+    break;
+
     case '7':
       textrue_file_path = "data/textures/black_stroke.png";
       //fragment_discard_mode =
@@ -596,6 +602,10 @@ int main(int argc, char** argv) {
                                                         "/mnt/pitoti/hallermann_scans/Modell_Ruine/Pointcloud_Ruine_xyz_parts_00008.bvh",
                                                        lod_rough);
 
+    auto plod_cat = lod_loader.load_lod_pointcloud("plod_cat", 
+                                                    "/home/vajo3185/cat/cat.bvh", lod_rough);
+
+
 
    snail->set_transform(scm::math::make_scale(5.0, 5.0,5.0));
    //cat->set_transform(scm::math::make_translation(-80.0, -660.0, -70.0)*scm::math::make_rotation(65.0, 0.0, 1.0, 0.0)*scm::math::make_scale(150.0, 150.0, 150.0));
@@ -624,7 +634,13 @@ int main(int argc, char** argv) {
    plod_tower_7->set_radius_scale(radius_scale);
    plod_tower_8->set_radius_scale(radius_scale);*/
 
-  
+  /*plod_tower->set_enable_backface_culling_by_normal(true);
+  plod_tower_2->set_enable_backface_culling_by_normal(true);
+  plod_tower_3->set_enable_backface_culling_by_normal(true);
+  plod_tower_4->set_enable_backface_culling_by_normal(true);
+  plod_tower_5->set_enable_backface_culling_by_normal(true);
+  plod_tower_6->set_enable_backface_culling_by_normal(true);
+  plod_tower_7->set_enable_backface_culling_by_normal(true);*/
 
    simple_geom_scene_transform->translate(0.20, 0.0, 0.0);
    //simple_geom_scene_transform->scale(2.5);
@@ -654,7 +670,7 @@ int main(int argc, char** argv) {
   graph.add_node(simple_geom_scene_transform, test_cube_with_trancsparency);
   graph.add_node(simple_geom_scene_transform, test_cube_plain);
   graph.add_node(simple_geom_scene_transform, test_cube_with_colors);
-  graph.add_node(transform, plod_head);
+  //graph.add_node(transform, plod_head);
 
   graph.add_node(plod_transform, plod_tower);
   graph.add_node(plod_transform, plod_tower_2);
@@ -664,7 +680,7 @@ int main(int argc, char** argv) {
   graph.add_node(plod_transform, plod_tower_6);
   graph.add_node(plod_transform, plod_tower_7);
   graph.add_node(plod_transform, plod_tower_8);
-  //graph.add_node(transform, cat);
+  graph.add_node(transform, plod_cat);
   //graph.add_node(plod_transform, plane);
   
   /*if(!show_scene_2){
@@ -771,13 +787,13 @@ int main(int argc, char** argv) {
   #else*/
   auto window = std::make_shared<gua::GlfwWindow>();
 
-  #if !USE_SIDE_BY_SIDE
+  /*#if !USE_SIDE_BY_SIDE
   window->on_resize.connect([&](gua::math::vec2ui const& new_size) {
     window->config.set_resolution(new_size);
     camera->config.set_resolution(new_size);
     screen->data.set_size(gua::math::vec2(0.001 * new_size.x, 0.001 * new_size.y));
   });
-  #endif
+  #endif*/
 
   window->on_move_cursor.connect(
       [&](gua::math::vec2 const& pos) { trackball.motion(pos.x, pos.y); });
@@ -976,6 +992,8 @@ int main(int argc, char** argv) {
     #endif 
 
 
+
+    plod_head->set_cut_dispatch(freeze_cut_update);
     ////////updated Plod error threshold on key press
     plod_head->set_error_threshold(error_threshold);
     plod_tower->set_error_threshold(error_threshold);
@@ -986,6 +1004,7 @@ int main(int argc, char** argv) {
     plod_tower_6->set_error_threshold(error_threshold);
     plod_tower_7->set_error_threshold(error_threshold);
     plod_tower_8->set_error_threshold(error_threshold);
+    plod_cat->set_error_threshold(error_threshold);
 
     ////////updated Plod surfel radius on key press
     plod_tower->set_radius_scale(radius_scale);
@@ -996,6 +1015,7 @@ int main(int argc, char** argv) {
     plod_tower_6->set_radius_scale(radius_scale);
     plod_tower_7->set_radius_scale(radius_scale);
     plod_tower_8->set_radius_scale(radius_scale);
+    plod_cat->set_radius_scale(radius_scale);
 
      //tmp texture for point cloud npr test
     gua::TextureDatabase::instance()->load(textrue_file_path);
@@ -1010,6 +1030,7 @@ int main(int argc, char** argv) {
     plod_tower_6->set_texture(tex);
     plod_tower_7->set_texture(tex);
     plod_tower_8->set_texture(tex);
+    plod_cat->set_texture(tex);
 
     if (window->should_close() || close_window) {
       renderer.stop();

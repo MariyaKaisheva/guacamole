@@ -92,7 +92,8 @@ public:  // methods
   bool               get_enable_backface_culling_by_normal() const;
   void               set_enable_backface_culling_by_normal(bool const enable_backface_culling);
 
-
+  static bool        get_cut_dispatch();
+  void               set_cut_dispatch(bool const freeze_cut_update);
 
 public:
   /**
@@ -129,6 +130,7 @@ private:  // attributes e.g. special attributes for drawing
   float                         max_surfel_size_;
   float                         error_threshold_;
   bool                          enable_backface_culling_by_normal_;
+  static bool                   freeze_cut_update_;
 };
 
 }  // namespace node {
