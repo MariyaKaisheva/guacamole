@@ -36,6 +36,7 @@
 #include <gua/renderer/ToonResolvePass.hpp> 
 #include <gua/renderer/NPREffectPass.hpp> 
 #include <gua/renderer/NprOutlinePass.hpp>  
+#include <gua/renderer/NprTestPass.hpp>
 
 namespace gua {
 
@@ -164,6 +165,12 @@ std::shared_ptr<NPREffectPassDescription> const PipelineDescription::get_npr_pas
 
 std::shared_ptr<NprOutlinePassDescription> const PipelineDescription::get_npr_outline_pass()const {
   return get_pass_by_type<NprOutlinePassDescription>();
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+std::shared_ptr<NprTestPassDescription> const PipelineDescription::get_npr_test_pass()const {
+  return get_pass_by_type<NprTestPassDescription>();
 }
 
 ////////////////////////////////////////////////////////////////////////////////

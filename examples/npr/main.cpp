@@ -32,6 +32,7 @@
 #include <gua/renderer/DebugViewPass.hpp>
 #include <gua/renderer/SSAAPass.hpp>
 #include <gua/renderer/ToonResolvePass.hpp> 
+#include <gua/renderer/NprTestPass.hpp>
 #include <gua/renderer/NprOutlinePass.hpp>
 #include <gua/renderer/NPREffectPass.hpp>
 #include <gua/utils/Trackball.hpp>
@@ -61,13 +62,13 @@
 #define USE_LOW_RES_WORKSTATION 0
 
 //#define USE_QUAD_BUFFERED 0//seems to not work anymore
-#define USE_SIDE_BY_SIDE 0
-#define USE_ANAGLYPH 1
+#define USE_SIDE_BY_SIDE 1
+#define USE_ANAGLYPH 0
 #define USE_MONO 0 
 
 #define TRACKING_ENABLED 0
 
-#define USE_TOON_RESOLVE_PASS 0
+//#define USE_TOON_RESOLVE_PASS 1
 
 
 // forward mouse interaction to trackball
@@ -106,6 +107,7 @@ void mouse_button(gua::utils::Trackball& trackball,
 std::string textrue_file_path = "data/textures/important_texture.jpg";
 float error_threshold = 3.7f; //for point cloud models
 float radius_scale = 0.7f;  //for point cloud models
+float radius_scale_br =  radius_scale + 2.0f;
 bool freeze_cut_update = false; //for lod models
 bool close_window = false;
 bool show_scene_1 = true;
@@ -132,6 +134,12 @@ int max = 15; //max num applications of Bilateral filter
 int min = 0; //min num applications of Bilateral filter
 //float sigma_d = 0.1; //not used currently
 
+//---test use-case demo
+float test_sphere_radius = 0.5f;
+bool apply_test_demo = false;
+//---
+
+
 int num_screenspace_passes = 1;
 
 
@@ -144,9 +152,13 @@ float screen_height = 0.3346f;
 //float mono_scree_width = 0.59;
 //float mono_scree_width = 0.35;
 
-float screen_offset_x = 3.192f;
+/*float screen_offset_x = 3.192f;
 float screen_offset_y = 1.2125f;
-float screen_offset_z = 1.148f;
+float screen_offset_z = 1.148f;*/
+
+float screen_offset_x = 3.692f;
+float screen_offset_y = 1.2125f;
+float screen_offset_z = -0.648f;
 
 float screen_rotation_x = -12.46f;
 float screen_rotation_y = -90.0f;
@@ -186,6 +198,11 @@ void rebuild_pipe(gua::PipelineDescription& pipe) {
   else{
     pipe.add_pass(std::make_shared<gua::ToonResolvePassDescription>());
   }
+
+  if(apply_test_demo){
+    pipe.add_pass(std::make_shared<gua::NprTestPassDescription>());
+    pipe.get_npr_test_pass()->sphere_radius(test_sphere_radius);
+  }
    
   if (apply_bilateral_filter){
 
@@ -205,7 +222,7 @@ void rebuild_pipe(gua::PipelineDescription& pipe) {
   }
 
   //pipe.add_pass(std::make_shared<gua::NprOutlinePassDescription>());
-  //pipe.add_pass(std::make_shared<gua::DebugViewPassDescription>());
+  pipe.add_pass(std::make_shared<gua::DebugViewPassDescription>());
   pipe.add_pass(std::make_shared<gua::SSAAPassDescription>());
 
 }
@@ -330,10 +347,15 @@ void key_press(gua::PipelineDescription& pipe, gua::SceneGraph& graph, int key, 
       }
     break; 
 
+    //toogle test visualization
+    case 't':
+      apply_test_demo = !apply_test_demo;
+      rebuild_pipe(pipe);
+    break;
 
     case 'n':
-       num_screenspace_passes +=1; 
-        rebuild_pipe(pipe);   
+      /* num_screenspace_passes +=1; 
+        rebuild_pipe(pipe);   */
                       /*if(sigma_d < 10.0){
                         sigma_d += 1;
                       }
@@ -341,12 +363,21 @@ void key_press(gua::PipelineDescription& pipe, gua::SceneGraph& graph, int key, 
                         sigma_d = 0.1;
                       }
                        pipe.get_npr_pass()->sigma_d(sigma_d);*/
+      if(test_sphere_radius <= 0.95f && apply_test_demo){
+        test_sphere_radius += 0.05f;
+        pipe.get_npr_test_pass()->sphere_radius(test_sphere_radius);
+      }
+
     break;
 
     case 'm':
-      if(num_screenspace_passes > 1){
+     /* if(num_screenspace_passes > 1){
         num_screenspace_passes -=1; 
           rebuild_pipe(pipe);   
+      }*/
+      if(test_sphere_radius >= 0.05f && apply_test_demo){
+        test_sphere_radius -=0.05f;
+        pipe.get_npr_test_pass()->sphere_radius(test_sphere_radius);
       }
     break;
 
@@ -364,7 +395,7 @@ void key_press(gua::PipelineDescription& pipe, gua::SceneGraph& graph, int key, 
 
     //toogle resolve pass
     case 'r':
-      use_toon_resolve_pass = !use_toon_resolve_pass; 
+      use_toon_resolve_pass = !use_toon_resolve_pass;
       rebuild_pipe(pipe);
     break; 
 
@@ -392,7 +423,7 @@ void key_press(gua::PipelineDescription& pipe, gua::SceneGraph& graph, int key, 
     break;
 
     case 'z':
-      if(error_threshold <= 200.0){
+      if(error_threshold <= 400.0){
         error_threshold += 2.0;
       }
     break;
@@ -406,12 +437,14 @@ void key_press(gua::PipelineDescription& pipe, gua::SceneGraph& graph, int key, 
      case 'u':
       if(radius_scale <= 20.0){
         radius_scale += 0.2;
+        radius_scale_br =  radius_scale + 2.0f;
       }
     break;
 
     case 'j':
       if(radius_scale >= 0.3){
         radius_scale -= 0.2;
+        radius_scale_br =  radius_scale + 2.0f;
       }
     break;
 
@@ -438,7 +471,7 @@ void key_press(gua::PipelineDescription& pipe, gua::SceneGraph& graph, int key, 
     break;
 
      case '0':
-      textrue_file_path = "data/textures/PB.png";
+      textrue_file_path = "data/textures/PB2.png";
       //fragment_discard_mode =
       //rebuild_pipe(pipe);
     break;
@@ -456,7 +489,7 @@ int main(int argc, char** argv) {
   // setup scene
   gua::SceneGraph graph("main_scenegraph");
 
-  gua::SkeletalAnimationLoader loader; //change name later
+  gua::SkeletalAnimationLoader animation_loader;
   gua::TriMeshLoader   trimesh_loader;
   gua::LodLoader lod_loader;
   lod_loader.set_out_of_core_budget_in_mb(512);
@@ -471,6 +504,7 @@ int main(int argc, char** argv) {
   //pointcloud scene
   auto plod_scene_transform = graph.add_node<gua::node::TransformNode>("/transform", "plod_scene_transform");
   auto plod_transform = graph.add_node<gua::node::TransformNode>("/transform/plod_scene_transform", "plod_transform");
+  auto plod_bridge_transform = graph.add_node<gua::node::TransformNode>("/transform/plod_scene_transform/", "plod_bridge_transform");
 
   //simple geometry
   auto simple_geom_scene_transform = graph.add_node<gua::node::TransformNode>("/transform", "simple_geom_scene_transform");
@@ -486,7 +520,7 @@ int main(int argc, char** argv) {
    snail_material->set_uniform("Metalness", 0.0f);
 
   std::string directory("data/textures/");
-  snail_material->set_uniform("ColorMap", directory + "snail_color.png");
+  snail_material->set_uniform("ColorMap", directory + "blue_marks.png");
   snail_material->set_uniform("Emissivity", 0.0f);
  
  //material for animated character
@@ -543,7 +577,7 @@ int main(int argc, char** argv) {
                 gua::TriMeshLoader::LOAD_MATERIALS));   
 
   //---character---    
-  auto character(loader.create_geometry_from_file("character", "/opt/project_animation/Assets/HeroTPP.FBX",
+  auto character(animation_loader.create_geometry_from_file("character", "/opt/project_animation/Assets/HeroTPP.FBX",
                        mat1, 
                        gua::SkeletalAnimationLoader::NORMALIZE_POSITION | 
                        gua::SkeletalAnimationLoader::NORMALIZE_SCALE)); 
@@ -562,13 +596,13 @@ int main(int argc, char** argv) {
   lod_rough->set_uniform("emissivity", 0.0f);
 
 
-   //---point cloud---   
+   //---point clouds---   
    auto plod_head = lod_loader.load_lod_pointcloud("pointcloud_head",
                                                    "/mnt/pitoti/hallermann_scans/bruecke2/kopf_local.bvh",
                                                   //"/mnt/pitoti/hallermann_scans/Schiefer_Turm_part_200M_00001_knobi.bvh",
                                                    lod_rough,
                                                    gua::LodLoader::NORMALIZE_POSITION);
-
+  //---
     auto plod_tower = lod_loader.load_lod_pointcloud("pointcloud_tower",
                                                    // "/mnt/pitoti/hallermann_scans/Schiefer_Turm_part_200M_00001_knobi.bvh",
                                                      "/mnt/pitoti/hallermann_scans/Modell_Ruine/Pointcloud_Ruine_xyz_parts_00001.bvh",
@@ -600,10 +634,64 @@ int main(int argc, char** argv) {
     auto plod_tower_8 = lod_loader.load_lod_pointcloud("pointcloud_tower",
                                                       //"/mnt/pitoti/hallermann_scans/Schiefer_Turm_part_200M_00008_knobi.bvh",
                                                         "/mnt/pitoti/hallermann_scans/Modell_Ruine/Pointcloud_Ruine_xyz_parts_00008.bvh",
+                                                     lod_rough);
+    //---
+
+    /*auto plod_bridge_1 = lod_loader.load_lod_pointcloud("pointcloud_bridge",
+                                                     "/mnt/pitoti/hallermann_scans/bruecke2/bruecke_local_part00001_knobi.bvh",
                                                        lod_rough);
+    auto plod_bridge_2 = lod_loader.load_lod_pointcloud("pointcloud_bridge",
+                                                     "/mnt/pitoti/hallermann_scans/bruecke2/bruecke_local_part00002_knobi.bvh",
+                                                       lod_rough);
+    auto plod_bridge_3 = lod_loader.load_lod_pointcloud("pointcloud_bridge",
+                                                     "/mnt/pitoti/hallermann_scans/bruecke2/bruecke_local_part00003_knobi.bvh",
+                                                       lod_rough);
+    auto plod_bridge_4 = lod_loader.load_lod_pointcloud("pointcloud_bridge",
+                                                     "/mnt/pitoti/hallermann_scans/bruecke2/bruecke_local_part00004_knobi.bvh",
+                                                       lod_rough);
+    auto plod_bridge_5 = lod_loader.load_lod_pointcloud("pointcloud_bridge",
+                                                     "/mnt/pitoti/hallermann_scans/bruecke2/bruecke_local_part00005_knobi.bvh",
+                                                       lod_rough);
+    auto plod_bridge_6 = lod_loader.load_lod_pointcloud("pointcloud_bridge",
+                                                     "/mnt/pitoti/hallermann_scans/bruecke2/bruecke_local_part00006_knobi.bvh",
+                                                       lod_rough);
+    auto plod_bridge_7 = lod_loader.load_lod_pointcloud("pointcloud_bridge",
+                                                     "/mnt/pitoti/hallermann_scans/bruecke2/bruecke_local_part00007_knobi.bvh",
+                                                       lod_rough);
+    auto plod_bridge_8 = lod_loader.load_lod_pointcloud("pointcloud_bridge",
+                                                     "/mnt/pitoti/hallermann_scans/bruecke2/bruecke_local_part00008_knobi.bvh",
+                                                       lod_rough);*/
+
+    auto plod_bridge_1 = lod_loader.load_lod_pointcloud("pointcloud_bridge",
+                                                     "/mnt/pitoti/hallermann_scans/bruecke/bruecke_points_part00001_knobi.bvh",
+                                                       lod_rough);
+    auto plod_bridge_2 = lod_loader.load_lod_pointcloud("pointcloud_bridge",
+                                                     "/mnt/pitoti/hallermann_scans/bruecke/bruecke_points_part00002_knobi.bvh",
+                                                       lod_rough);
+    auto plod_bridge_3 = lod_loader.load_lod_pointcloud("pointcloud_bridge",
+                                                     "/mnt/pitoti/hallermann_scans/bruecke/bruecke_points_part00003_knobi.bvh",
+                                                       lod_rough);
+    auto plod_bridge_4 = lod_loader.load_lod_pointcloud("pointcloud_bridge",
+                                                     "/mnt/pitoti/hallermann_scans/bruecke/bruecke_points_part00004_knobi.bvh",
+                                                       lod_rough);
+    auto plod_bridge_5 = lod_loader.load_lod_pointcloud("pointcloud_bridge",
+                                                     "/mnt/pitoti/hallermann_scans/bruecke/bruecke_points_part00005_knobi.bvh",
+                                                       lod_rough);
+    auto plod_bridge_6 = lod_loader.load_lod_pointcloud("pointcloud_bridge",
+                                                     "/mnt/pitoti/hallermann_scans/bruecke/bruecke_points_part00006_knobi.bvh",
+                                                       lod_rough);
+    auto plod_bridge_7 = lod_loader.load_lod_pointcloud("pointcloud_bridge",
+                                                     "/mnt/pitoti/hallermann_scans/bruecke/bruecke_points_part00007_knobi.bvh",
+                                                       lod_rough);
+    auto plod_bridge_8 = lod_loader.load_lod_pointcloud("pointcloud_bridge",
+                                                     "/mnt/pitoti/hallermann_scans/bruecke/bruecke_points_part00008_knobi.bvh",
+                                                       lod_rough);
+    //--
 
     auto plod_cat = lod_loader.load_lod_pointcloud("plod_cat", 
                                                     "/home/vajo3185/cat/cat.bvh", lod_rough);
+
+
 
 
 
@@ -616,6 +704,11 @@ int main(int argc, char** argv) {
    //plod_transform->translate(50.0, 0.0, 15.0);
    plod_transform->translate(70.0, -4.0, 5.0);
    plod_transform->scale(0.08);
+
+    plod_bridge_transform->rotate(180.0, 0.0, 1.0, 0.0);
+    plod_bridge_transform->rotate(90.0, 1.0, 0.0, 0.0);
+    plod_bridge_transform->translate(50.0, 0.0, 0.0);
+    plod_bridge_transform->scale(0.1);
    //float scale_value = 0.7f;
 
    //hide mesh-geometry//////////////
@@ -654,13 +747,13 @@ int main(int argc, char** argv) {
 
    
 
-   #if USE_SIDE_BY_SIDE
+   //#if USE_SIDE_BY_SIDE
     //transform->translate(screen_offset_x, screen_offset_y, screen_offset_z);
     sponza->scale(8.0f);
     sponza->rotate(180, 0, 1, 0);
     sponza->translate(screen_offset_x, screen_offset_y, screen_offset_z);
     sphere->scale(0.05);
-   #endif
+  // #endif
 
   simple_geom_scene_transform->translate(screen_offset_x, screen_offset_y, screen_offset_z);
   //teapot->translate(screen_offset_x, screen_offset_y, screen_offset_z);
@@ -680,21 +773,33 @@ int main(int argc, char** argv) {
   graph.add_node(plod_transform, plod_tower_6);
   graph.add_node(plod_transform, plod_tower_7);
   graph.add_node(plod_transform, plod_tower_8);
-  graph.add_node(transform, plod_cat);
+  //graph.add_node(transform, plod_cat);
+
+
+ 
+  graph.add_node(plod_bridge_transform, plod_bridge_1);
+  graph.add_node(plod_bridge_transform, plod_bridge_2);
+  graph.add_node(plod_bridge_transform, plod_bridge_3);
+  graph.add_node(plod_bridge_transform, plod_bridge_4);
+  graph.add_node(plod_bridge_transform, plod_bridge_5);
+  graph.add_node(plod_bridge_transform, plod_bridge_6);
+  graph.add_node(plod_bridge_transform, plod_bridge_7);
+  graph.add_node(plod_bridge_transform, plod_bridge_8);
+
   //graph.add_node(plod_transform, plane);
   
   /*if(!show_scene_2){
     graph["/transform/plod_transform"]->get_tags().add_tag("invisible");
   }*/
 
- /* auto light2 = graph.add_node<gua::node::LightNode>("/", "light2");
+ auto light2 = graph.add_node<gua::node::LightNode>("/", "light2");
   light2->data.set_type(gua::node::LightNode::Type::POINT);
   light2->data.brightness = 1500.0f;
-  light2->data.color = gua::utils::Color3f(0.0, 1.0, 0.5);
+  light2->data.color = gua::utils::Color3f(1.0, 1.0, 1.0);
   //light2->scale(800.f);
-  light2->scale(12.f); //tmp
+  light2->scale(7.f); //tmp
   light2->translate(-2.f, 5.f, 4.f);
-  graph.add_node("/light2", sphere);*/
+ // graph.add_node("/light2", sphere);
 
   
   // setup rendering pipeline and window
@@ -707,15 +812,15 @@ int main(int argc, char** argv) {
   resolution = gua::math::vec2ui(1920, 1080);
   #endif
 
-  #if USE_TOON_RESOLVE_PASS
+  /*#if USE_TOON_RESOLVE_PASS
     auto npr_resolve_pass = std::make_shared<gua::ToonResolvePassDescription>();
   #else
     auto npr_resolve_pass = std::make_shared<gua::ResolvePassDescription>();
     npr_resolve_pass->background_mode(
       gua::ResolvePassDescription::BackgroundMode::QUAD_TEXTURE);
-  #endif
+  #endif*/
   //npr_resolve_pass->tone_mapping_exposure(1.0f);
-  auto npr_pass = std::make_shared<gua::NPREffectPassDescription>();
+  //auto npr_pass = std::make_shared<gua::NPREffectPassDescription>();
 
   //////////////////////////////////
   auto navigation = graph.add_node<gua::node::TransformNode>("/", "navigation");
@@ -725,8 +830,8 @@ int main(int argc, char** argv) {
   point_light->data.brightness = 3.0f;
   //point_light->data.falloff = 1.5f;
   //point_light->data.brightness = 15.0f;
-  point_light->data.color = gua::utils::Color3f(0.2, 1.0, 0.5);
-  //graph.add_node(point_light, sphere);
+  point_light->data.color = gua::utils::Color3f(1.0, 1.0, 0.5);
+  graph.add_node(point_light, sphere);
 
 
 
@@ -747,17 +852,18 @@ int main(int argc, char** argv) {
 
   screen->data.set_size(gua::math::vec2(screen_width, screen_height)); //TODO check dim for other screens
   screen->translate(0, 0, -0.6);
-  #if USE_SIDE_BY_SIDE  
+   
   screen->rotate(screen_rotation_x, 1, 0, 0);
   screen->rotate(screen_rotation_y, 0, 1, 0);
   screen->translate(screen_offset_x, screen_offset_y, screen_offset_z);
+  #if USE_SIDE_BY_SIDE 
   auto navigation_eye_offset = graph.add_node<gua::node::TransformNode>("/navigation", "eye_offset");
   auto camera = graph.add_node<gua::node::CameraNode>("/navigation/eye_offset", "cam");
   navigation_eye_offset->translate(0, 0, glass_eye_offset);
   camera->translate(screen_offset_x, screen_offset_y, screen_offset_z);
   #else 
   auto camera = graph.add_node<gua::node::CameraNode>("/navigation/screen", "cam");
-  camera->translate(0.0, 0.0, 2.6);
+  camera->translate(0.0, 0.0, screen_offset_z);
   #endif
   camera->config.set_resolution(resolution);
   camera->config.set_screen_path("/navigation/screen");
@@ -811,7 +917,7 @@ int main(int argc, char** argv) {
   //#endif
 
   gua::WindowDatabase::instance()->add("main_window", window);
-  window->config.set_enable_vsync(false);
+  window->config.set_enable_vsync(true);
   window->config.set_size(resolution);
   window->config.set_resolution(resolution);
 
@@ -871,7 +977,7 @@ int main(int argc, char** argv) {
 
     gua::math::mat4 translation_matrix = gua::math::mat4::identity();
     gua::math::mat4 current_nav_transformation = navigation->get_transform();
-    auto current_translation_mat = gua::math::get_translation(current_nav_transformation);
+    //auto current_translation_mat = gua::math::get_translation(current_nav_transformation);
 
   gua::Renderer renderer;
 
@@ -882,9 +988,9 @@ int main(int argc, char** argv) {
 
   auto default_node_transform = plod_head->get_transform();
 
-  unsigned passed_frames = 0;
+  //unsigned passed_frames = 0;
   float i = 0; 
-  double current_scaling = 1.0;
+  //double current_scaling = 1.0;
   ticker.on_tick.connect([&]() {
 
   #if USE_SIDE_BY_SIDE
@@ -930,7 +1036,7 @@ int main(int argc, char** argv) {
 
 
      //add simple geometry rotation
-     gua::math::mat4 model_rot_matrix = scm::math::make_rotation(0.1, 0.0, 1.0, 0.0 );
+     gua::math::mat4 model_rot_matrix = scm::math::make_rotation(0.0, 0.0, 1.0, 0.0 );
      test_cube_with_trancsparency->set_transform((test_cube_with_trancsparency->get_transform())*model_rot_matrix);
                          
   gua::math::mat4 current_nav_transform = navigation->get_transform();
@@ -983,12 +1089,25 @@ int main(int argc, char** argv) {
   //std::cout << "cam pos" << gua::math::vec3(nav_transform[12], nav_transform[13], nav_transform[14]) << "\n"; 
 
     #if (USE_SIDE_BY_SIDE && TRACKING_ENABLED)
+    //#if TRACKING_ENABLED
     camera->set_transform(current_cam_tracking_matrix);
-    light_pointer->set_transform(
+    
+    if(!apply_test_demo){
+       light_pointer->set_transform(
                                   //gua::math::mat4(scm::math::make_translation( screen_offset_x, screen_offset_y, screen_offset_z))*
                                    current_pointer_tracking_matrix 
                                   //* gua::math::mat4(scm::math::make_translation(-screen_offset_x, -screen_offset_y, -screen_offset_z))
                                   );
+    }
+    else{
+      auto pointer_translation_vec = gua::math::get_translation(current_pointer_tracking_matrix);
+      pipe->get_npr_test_pass()->sphere_location_x(pointer_translation_vec.x);
+      pipe->get_npr_test_pass()->sphere_location_y(pointer_translation_vec.y);
+      pipe->get_npr_test_pass()->sphere_location_z(pointer_translation_vec.z);
+      light_pointer->set_transform(scm::math::make_translation(pointer_translation_vec));
+      //std::cout<< "x: " << pointer_translation_vec.x << " y: " << pointer_translation_vec.y << " z: " << pointer_translation_vec.z << "\n";
+    }
+   
     #endif 
 
 
@@ -1004,7 +1123,17 @@ int main(int argc, char** argv) {
     plod_tower_6->set_error_threshold(error_threshold);
     plod_tower_7->set_error_threshold(error_threshold);
     plod_tower_8->set_error_threshold(error_threshold);
-    plod_cat->set_error_threshold(error_threshold);
+    //plod_cat->set_error_threshold(error_threshold);
+
+    plod_bridge_1->set_error_threshold(error_threshold);
+    plod_bridge_2->set_error_threshold(error_threshold);
+    plod_bridge_3->set_error_threshold(error_threshold);
+    plod_bridge_4->set_error_threshold(error_threshold);
+    plod_bridge_5->set_error_threshold(error_threshold);
+    plod_bridge_6->set_error_threshold(error_threshold);
+    plod_bridge_7->set_error_threshold(error_threshold);
+    plod_bridge_8->set_error_threshold(error_threshold);
+
 
     ////////updated Plod surfel radius on key press
     plod_tower->set_radius_scale(radius_scale);
@@ -1015,7 +1144,16 @@ int main(int argc, char** argv) {
     plod_tower_6->set_radius_scale(radius_scale);
     plod_tower_7->set_radius_scale(radius_scale);
     plod_tower_8->set_radius_scale(radius_scale);
-    plod_cat->set_radius_scale(radius_scale);
+    //plod_cat->set_radius_scale(radius_scale);
+
+    plod_bridge_1->set_radius_scale(radius_scale_br);
+    plod_bridge_2->set_radius_scale(radius_scale_br);
+    plod_bridge_3->set_radius_scale(radius_scale_br);
+    plod_bridge_4->set_radius_scale(radius_scale_br);
+    plod_bridge_5->set_radius_scale(radius_scale_br);
+    plod_bridge_6->set_radius_scale(radius_scale_br);
+    plod_bridge_7->set_radius_scale(radius_scale_br);
+    plod_bridge_8->set_radius_scale(radius_scale_br);
 
      //tmp texture for point cloud npr test
     gua::TextureDatabase::instance()->load(textrue_file_path);
@@ -1030,7 +1168,16 @@ int main(int argc, char** argv) {
     plod_tower_6->set_texture(tex);
     plod_tower_7->set_texture(tex);
     plod_tower_8->set_texture(tex);
-    plod_cat->set_texture(tex);
+    //plod_cat->set_texture(tex);
+
+    plod_bridge_1->set_texture(tex);
+    plod_bridge_2->set_texture(tex);
+    plod_bridge_3->set_texture(tex);
+    plod_bridge_4->set_texture(tex);
+    plod_bridge_5->set_texture(tex);
+    plod_bridge_6->set_texture(tex);
+    plod_bridge_7->set_texture(tex);
+    plod_bridge_8->set_texture(tex);
 
     if (window->should_close() || close_window) {
       renderer.stop();
