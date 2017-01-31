@@ -34,6 +34,7 @@
 #include <gua/renderer/ToonResolvePass.hpp> 
 #include <gua/renderer/NprTestPass.hpp>
 #include <gua/renderer/NprOutlinePass.hpp>
+#include <gua/renderer/NprBlendingPass.hpp>
 #include <gua/renderer/NPREffectPass.hpp>
 #include <gua/utils/Trackball.hpp>
 //#include <gua/gui.hpp> 
@@ -126,6 +127,7 @@ auto plod_pass = std::make_shared<gua::PLodPassDescription>();
 bool use_toon_resolve_pass = false; 
 bool apply_bilateral_filter = false;
 bool apply_halftoning_effect = false; 
+bool apply_blending = false;
 bool no_color = false;
 bool create_screenspace_outlines = false; 
 int thickness = 0;
@@ -218,8 +220,16 @@ void rebuild_pipe(gua::PipelineDescription& pipe) {
    pipe.add_pass(std::make_shared<gua::NprOutlinePassDescription>());
    pipe.get_npr_outline_pass()->halftoning(apply_halftoning_effect);
    pipe.get_npr_outline_pass()->apply_outline(create_screenspace_outlines);
+   //pipe.get_npr_outline_pass()->store_for_blending(false);
    pipe.get_npr_outline_pass()->no_color(no_color);
+
+     if (apply_blending){
+      pipe.get_npr_outline_pass()->store_for_blending(true);
+      pipe.add_pass(std::make_shared<gua::NprBlendingPassDescription>());
+    }
   }
+
+ 
 
   //pipe.add_pass(std::make_shared<gua::NprOutlinePassDescription>());
   pipe.add_pass(std::make_shared<gua::DebugViewPassDescription>());
@@ -322,9 +332,11 @@ void key_press(gua::PipelineDescription& pipe, gua::SceneGraph& graph, int key, 
   if (action == 0) return;
   switch(std::tolower(key)){
 
-    case 'o':
+    //reset pipeline
+    case 'o': 
       use_toon_resolve_pass = false;
       create_screenspace_outlines = false; 
+      apply_test_demo = false;
       apply_bilateral_filter = false; 
       apply_halftoning_effect = false;
       rebuild_pipe(pipe);
@@ -350,6 +362,7 @@ void key_press(gua::PipelineDescription& pipe, gua::SceneGraph& graph, int key, 
     //toogle test visualization
     case 't':
       apply_test_demo = !apply_test_demo;
+      apply_blending = !apply_blending;
       rebuild_pipe(pipe);
     break;
 

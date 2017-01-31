@@ -48,6 +48,7 @@ namespace gua {
 
     //defaut value
     uniforms["line_thickness"] = 1;
+    //uniforms["store_for_blending"] = false;
   }
 
   
@@ -87,6 +88,12 @@ namespace gua {
   NprOutlinePassDescription& NprOutlinePassDescription::no_color(bool value)
   {
   uniforms["no_color"] = value;
+  return *this;
+  }
+   ////////////////////////////////////////////////////////////////////////////////
+  NprOutlinePassDescription& NprOutlinePassDescription::store_for_blending(bool value)
+  {
+  uniforms["store_for_blending"] = value;
   return *this;
   }
 

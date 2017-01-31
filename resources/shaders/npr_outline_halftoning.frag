@@ -10,6 +10,8 @@ uniform int line_thickness;
 uniform bool halftoning;
 uniform bool apply_outline;
 uniform bool no_color;
+uniform bool store_for_blending;
+
 
 // output
 layout(location=0) out vec3 gua_out_color;
@@ -34,23 +36,24 @@ void main() {
             
   /*mat3 dither_mat = mat3(0.1, 0.8, 0.4,
                          0.7, 0.6, 0.3,
-                         0.5, 0.2, 0.9);  */
+                         0.5, 0.2, 0.9); */ 
  mat4  dither_mat = mat4(1.0, 9.0, 3.0, 11.0,
                           13.0, 5.0, 15.0, 7.0,
                           4.0, 12.0, 2.0, 10.0,
-                          16.0, 8.0, 14.0, 6.0) / 17; 
+                          16.0, 8.0, 14.0, 6.0) / 17.0; 
 
-  /*float dither_mat [8][8] = {{{1/65,49/65, 13/65, 61/65, 4/65, 52/65, 16/65, 64/65}},
-                             {33/65, 17/65, 45/65, 29/65, 36/65, 20/65, 48/65, 32/65},
-                             {{9/65, 57/65, 5/65, 53/65, 12/65, 60/65, 8/65, 56/65}},
-                             {{41/65, 25/65, 37/65, 21/65, 44/65, 28/65, 40/65, 24/65}},
-                             {{3/65, 51/65, 15/65, 63/65, 2/65, 50/65, 14/65, 62/65}},
-                             {{35/65, 19/65, 47/65, 31/65, 34/65, 18/65, 46/65, 30/65}},
-                             {{11/65, 59/65, 7/65, 55/65, 10/65, 58/65, 6/65, 54/65}},
-                             {{43/65, 27/65, 39/65, 23/65, 42/65, 26/65, 38/65, 22/65}}};*/
+  /*float dither_mat [8][8] = {{{1.0/65.0,49.0/65.0, 13.0/65.0, 61.0/65.0, 4.0/65.0, 52.0/65.0, 16.0/65.0, 64.0/65.0}},
+                             {33.0/65.0, 17.0/65.0, 45.0/65.0, 29.0/65.0, 36.0/65.0, 20.0/65.0, 48.0/65.0, 32.0/65.0},
+                             {{9.0/65.0, 57.0/65.0, 5.0/65.0, 53.0/65.0, 12.0/65.0, 60.0/65.0, 8.0/65.0, 56.0/65.0}},
+                             {{41.0/65.0, 25.0/65.0, 37.0/65.0, 21.0/65.0, 44.0/65.0, 28.0/65.0, 40.0/65.0, 24.0/65.0}},
+                             {{3.0/65.0, 51.0/65.0, 15.0/65.0, 63.0/65.0, 2.0/65.0, 50.0/65.0, 14.0/65.0, 62.0/65.0}},
+                             {{35.0/65.0, 19.0/65.0, 47.0/65.0, 31.0/65.0, 34.0/65.0, 18.0/65.0, 46.0/65.0, 30.0/65.0}},
+                             {{11.0/65.0, 59.0/65.0, 7.0/65.0, 55.0/65.0, 10.0/65.0, 58.0/65.0, 6.0/65.0, 54.0/65.0}},
+                             {{43.0/65.0, 27/65.0, 39.0/65.0, 23.0/65.0, 42.0/65.0, 26.0/65.0, 38.0/65.0, 22.0/65.0}}};*/
   
 
   vec3 color = gua_get_color(texcoord);
+  //vec3 out_color = vec3(0.0);
   vec3 accumulated_color_x = vec3(0.0, 0.0, 0.0);
   vec3 accumulated_color_y = vec3(0.0, 0.0, 0.0);
 
@@ -69,7 +72,7 @@ void main() {
       //accumulated_color_y += sobel_y[r +1][c +1]* get_linearized_depth(tmp_texcoord); 
       
       accumulated_color_x += sobel_x[r +1][c +1]* gua_get_normal(tmp_texcoord); 
-                                                                                accumulated_color_y += sobel_y[r +1][c +1]* gua_get_normal(tmp_texcoord);
+      accumulated_color_y += sobel_y[r +1][c +1]* gua_get_normal(tmp_texcoord);
       
       //accumulated_color_x += sobel_x[r +1][c +1]* gua_get_color(tmp_texcoord); 
       //accumulated_color_y += sobel_y[r +1][c +1]* gua_get_color(tmp_texcoord);
@@ -83,7 +86,7 @@ void main() {
 
   float depth = gua_get_depth();
   float outline_treshhold = 2.3; //TODO meaning of the value?! 
-  float color_scale_var = 8.0; //color discritisation value
+  float color_scale_var = 6.0; //color discritisation value
   int kernel_size = 4; //changes the size repeated pattern grid; influences the showerdoor effect; should correspond to dither_mat dimensions
 
   if(depth < 1){ //check for background
@@ -109,16 +112,60 @@ void main() {
       }
       else{
         if(no_color){
-          gua_out_color = vec3(1.0, 1.0, 1.0);
+          gua_out_color = vec3(1.0, 1.0, 1.0); //white foreground
         }else{
           gua_out_color = gua_get_color(texcoord); //no halftoning; no outline applied
         }
         
       }    
     }
-}
-else {//background color 
- gua_out_color =  gua_get_color(texcoord); 
-} 
+  }
+  else {//background color 
+    gua_out_color =   vec3(1.0, 1.0, 1.0); //gua_get_color(texcoord); 
+  } 
 
+  /*if(depth < 1){ //check for background
+    if((halftoning && !apply_outline) || (halftoning && apply_outline && dot(edge_color, vec3(1) ) < outline_treshhold)) { //Halftonning effect is enabled 
+      float gray = color.x* 0.2126 + color.y* 0.7152 + color.z* 0.0722;
+      vec3 gray_color = vec3(gray, gray, gray);
+      int x = int(mod(gl_FragCoord.x, kernel_size));
+      int y = int(mod(gl_FragCoord.y, kernel_size)); 
+      gray_color = gray_color + gray_color*(dither_mat[x][y]);
+      vec3 dithered_color = vec3(0.0, 0.0, 0.0);
+
+      for (int i = 0; i < 8; ++i ){
+        for (int j = 0; j < 8; ++j ){
+          if (gray_color.x < dither_mat[i][j]) { 
+            dithered_color = (floor(gua_get_color(texcoord).xyz*color_scale_var))/color_scale_var;
+            //dithered_color = vec3(0.1, 0.1, 0.01);
+          }
+          else {
+            dithered_color = (ceil(gua_get_color(texcoord).xyz*color_scale_var))/color_scale_var;
+          }
+          gua_out_color = dithered_color;
+        }
+      }
+    }
+    else if(apply_outline) { //Outline effect is enabled 
+
+      if(dot(edge_color, vec3(1) ) >= outline_treshhold) {
+          gua_out_color = vec3(0.0, 0.0, 0.0); //outline color 
+      }
+      else{
+        if(no_color){
+          gua_out_color = vec3(1.0, 1.0, 1.0); //white forground
+        }else{
+          gua_out_color = gua_get_color(texcoord); //no halftoning; no outline applied
+        }
+        
+      }    
+    }
+  }
+  else {//background color 
+    gua_out_color =   vec3(1.0, 1.0, 1.0); //gua_get_color(texcoord); 
+  } */
+
+  /*if(store_for_blending){
+    gua_out_color = vec3(0.0, 1.0, 1.0); 
+  }*/
 }

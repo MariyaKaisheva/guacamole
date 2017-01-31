@@ -19,8 +19,8 @@
  *                                                                            *
  ******************************************************************************/
 
-#ifndef GUA_NPR_OUTLINE_PASS_HPP
-#define GUA_NPR_OUTLINE_PASS_HPP
+#ifndef GUA_NPR_BLENDING_PASS_HPP
+#define GUA_NPR_BLENDING_PASS_HPP
 
 #include <gua/renderer/PipelinePass.hpp>
 
@@ -30,19 +30,13 @@ namespace gua {
 
 class Pipeline;
 
-class GUA_DLL NprOutlinePassDescription : public PipelinePassDescription {
+class GUA_DLL NprBlendingPassDescription : public PipelinePassDescription {
  public:
 
-  NprOutlinePassDescription();
+  NprBlendingPassDescription();
 
   std::shared_ptr<PipelinePassDescription> make_copy() const override;
-  NprOutlinePassDescription& line_thickness(int value);
-  NprOutlinePassDescription& halftoning(bool value);
-  NprOutlinePassDescription& apply_outline(bool value);
-  NprOutlinePassDescription& no_color(bool value);
-  NprOutlinePassDescription& store_for_blending(bool vale);
-
-
+  //TODO pass blending weight tecture as a uniform
   friend class Pipeline;
 
  protected:
@@ -53,4 +47,4 @@ class GUA_DLL NprOutlinePassDescription : public PipelinePassDescription {
 
 }
 
-#endif  // GUA_NPR_OUTLINE_PASS_HPP
+#endif  // GUA_NPR_BLENDING_PASS_HPP

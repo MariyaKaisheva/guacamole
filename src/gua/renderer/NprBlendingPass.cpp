@@ -19,38 +19,46 @@
  *                                                                            *
  ******************************************************************************/
 
-#ifndef GUA_NPR_OUTLINE_PASS_HPP
-#define GUA_NPR_OUTLINE_PASS_HPP
+// class header
+#include <gua/renderer/NprBlendingPass.hpp>
 
-#include <gua/renderer/PipelinePass.hpp>
+#include <gua/renderer/GBuffer.hpp>
+#include <gua/renderer/ABuffer.hpp>
+#include <gua/renderer/Pipeline.hpp>
+#include <gua/utils/Logger.hpp>
 
-#include <memory>
+//
+#include <gua/renderer/Uniform.hpp>
+
+#include <boost/variant.hpp>
 
 namespace gua {
 
-class Pipeline;
+  ////////////////////////////////////////////////////////////////////////////////
+  NprBlendingPassDescription::NprBlendingPassDescription()
+    : PipelinePassDescription()
+  {
+    vertex_shader_ = "shaders/common/fullscreen_quad.vert";
+    fragment_shader_ = "shaders/npr_blending.frag";
+    needs_color_buffer_as_input_ = true;
+    writes_only_color_buffer_ = true;
+    rendermode_ = RenderMode::Quad;
+    name_ = "NprBlendingPassDescription";
+    depth_stencil_state_ = boost::make_optional(scm::gl::depth_stencil_state_desc(false, false));
 
-class GUA_DLL NprOutlinePassDescription : public PipelinePassDescription {
- public:
+  }
 
-  NprOutlinePassDescription();
+  
 
-  std::shared_ptr<PipelinePassDescription> make_copy() const override;
-  NprOutlinePassDescription& line_thickness(int value);
-  NprOutlinePassDescription& halftoning(bool value);
-  NprOutlinePassDescription& apply_outline(bool value);
-  NprOutlinePassDescription& no_color(bool value);
-  NprOutlinePassDescription& store_for_blending(bool vale);
+  ////////////////////////////////////////////////////////////////////////////////
+  std::shared_ptr<PipelinePassDescription> NprBlendingPassDescription::make_copy() const {
+    return std::make_shared<NprBlendingPassDescription>(*this);
+  }
 
-
-  friend class Pipeline;
-
- protected:
-  PipelinePass make_pass(RenderContext const&, SubstitutionMap&) override;
-
-};
-
-
+  ////////////////////////////////////////////////////////////////////////////////
+  PipelinePass NprBlendingPassDescription::make_pass(RenderContext const& ctx, SubstitutionMap& substitution_map)
+  {
+    PipelinePass pass{*this, ctx, substitution_map};
+    return pass;
+  }
 }
-
-#endif  // GUA_NPR_OUTLINE_PASS_HPP
