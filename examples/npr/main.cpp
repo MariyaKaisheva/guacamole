@@ -50,6 +50,7 @@
 //global variables
 bool close_window = false;
 bool detach_scene_from_tracking_target = false;
+bool use_ray_pointer = false;
 std::vector<gua::math::BoundingBox<gua::math::vec3> > scene_bounding_boxes;
 auto zoom_factor = 1.0;
 gua::math::mat4 current_scene_tracking_matrix(gua::math::mat4::identity());
@@ -102,22 +103,13 @@ void scale_scene (double zoom_factor, gua::SceneGraph& graph){
   //graph["scene_root"]->scale(zoom_factor);
   graph["scene_root"]->set_transform(scene_transform_mat);
   */
-
-  
   auto current_scene_translation_vec = gua::math::get_translation(current_scene_tracking_matrix);
   auto current_scene_rot_matrix = gua::math::get_rotation(current_scene_tracking_matrix);
-
-
   auto scene_transform_mat = scm::math::make_translation(current_scene_translation_vec)
                              * current_scene_rot_matrix
-                             * scm::math::make_scale(zoom_factor, zoom_factor, zoom_factor);                         
-                             //* scm::math::make_scale(scaling_factor, scaling_factor, scaling_factor);
-                             //scene_transform->get_transform();// *
-                             //scm::math::make_translation(-scene_bbox.center().x, -scene_bbox.center().y, -scene_bbox.center().z)*
-                             //current_scene_rot_matrix;
+                             * scm::math::make_scale(zoom_factor, zoom_factor, zoom_factor);
+
   graph["/scene_root"]->set_transform(scene_transform_mat);
-
-
 }
 
 //key-board interactions
@@ -127,8 +119,8 @@ void key_press(gua::PipelineDescription& pipe,
 			   int scancode, 
 			   int action, 
 			   int mods){
-  //TODO what action mapps to what???
-  //if (action == 0) return;
+  //std::cout << scancode << "scancode\n";
+  
   if(9 == scancode){ //'Esc'
       close_window = true;
   }
@@ -137,7 +129,10 @@ void key_press(gua::PipelineDescription& pipe,
   if(65 == scancode && action == 1){ //'Spacebar'
       detach_scene_from_tracking_target = !detach_scene_from_tracking_target;
   }
-  
+  //toogle pointer position tracking
+  if(108 == scancode && action == 1){ //'right Alt'
+      use_ray_pointer = !use_ray_pointer;
+  }
 	switch(std::tolower(key)){
 		case 't':
 		  std::cout << "t key was pressed \n";
@@ -171,7 +166,6 @@ void build_pipe (gua::PipelineDescription& pipe){
 
 std::pair<std::vector<std::string>, std::vector<scm::math::mat4f>> interpret_config_file(std::string const&  path_to_file) {
   namespace fs = boost::filesystem;
-  //std::cout << "Do stng with scene config file "<< path_to_file << "\n";
   std::vector<scm::math::mat4f> model_transformations;
   std::vector<std::string> model_filenames;
   auto file_name = fs::canonical(path_to_file); //TODO check if this is needed elsewhere as well
@@ -189,29 +183,6 @@ std::pair<std::vector<std::string>, std::vector<scm::math::mat4f>> interpret_con
 
   return std::make_pair(model_filenames, model_transformations);
 }
-
-
-/*std::pair<double, scm::math::vec<double, 3u>>
-compute_normalizing_transformations(std::vector<gua::math::BoundingBox<gua::math::vec3> > const& bounding_boxes){
-  //TODO check if next 2 lines make sense???
-  auto total_max_point = std::numeric_limits<scm::math::vec<double, 3u>>::lowest();
-  auto total_min_point = std::numeric_limits<scm::math::vec<double, 3u>>::max();
-  for(auto& current_bbox : bounding_boxes){
-
-   total_max_point.x = std::max(total_max_point.x, current_bbox.max.x);
-   total_max_point.y = std::max(total_max_point.y, current_bbox.max.y);
-   total_max_point.z = std::max(total_max_point.z, current_bbox.max.z);
-   total_min_point.x = std::min(total_min_point.x, current_bbox.min.x);
-   total_min_point.y = std::min(total_min_point.y, current_bbox.min.y);
-   total_min_point.z = std::min(total_min_point.z, current_bbox.min.z);
-  }
-  std::cout << "total_max_point: " << total_max_point << "\n";
-  std::cout << "total_min_point: " << total_min_point << "\n";
-  auto bbox_center_point = (total_max_point + total_min_point)/2.0;
-  auto scale = 0.59f / scm::math::length(total_max_point - total_min_point);
-  std::cout << scale << " Scale \n";
-  return std::make_pair(scale, bbox_center_point);
-}*/
 
 void add_models_to_graph(std::vector<std::string> const& model_files, 
                          gua::SceneGraph& graph,
@@ -253,23 +224,14 @@ void add_models_to_graph(std::vector<std::string> const& model_files,
       //auto local_transform_2 = node->get_geometry()->local_transform();
       //auto bbox_center_object_space = local_transform * gua::math::vec4(scene_bbox.center().x, scene_bbox.center().y, scene_bbox.center().z, 1.0);
       node->translate(-scene_bbox.center().x, -scene_bbox.center().y, -scene_bbox.center().z);
-      //node->translate(0.0, 1.6, 0.0);
+      node->translate(0.0, 1.6, 0.0);
       node->scale(scaling_factor);
       node->set_draw_bounding_box(true);
     }
     
-    
-    //auto local_transform_2 = scm::math::make_translation(graph["/scene_root"]->get_world_position());
-    //graph["/scene_root"]->update_cache();
-    //graph["/scene_root"]->scale(scaling_factor);
-    auto tramformation_mat = graph["/scene_root"]->get_world_transform();
-    auto local_transform = scm::math::make_translation(gua::math::get_translation(tramformation_mat));
-    auto bbox_center_object_space = local_transform * gua::math::vec4(scene_bbox.center().x, scene_bbox.center().y, scene_bbox.center().z, 1.0);
-    //graph["/scene_root"]->translate(-scene_bbox.center().x, -scene_bbox.center().y, -scene_bbox.center().z);
-   graph["/scene_root"]->set_draw_bounding_box(true);
-    //std::cout <<  tramformation_mat  << " tramformation_mat \n"; 
-    //std::cout <<  scaling_factor  << " scaling_factor \n";    
+   graph["/scene_root"]->set_draw_bounding_box(true);   
 }
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -280,7 +242,7 @@ int main(int argc, char** argv) {
 	//setup scene ////////////////////////////////////
 	gua::SceneGraph graph("main_scenegraph");
 	auto scene_transform = graph.add_node<gua::node::TransformNode>("/", "scene_root");
-  auto initial_scene_translation_vec = scm::math::vec<double, 3u>(y_offset_scene_track_target, y_offset_scene_track_target, y_offset_scene_track_target);
+  auto initial_scene_translation_vec = scm::math::vec<double, 3u>(0.0, y_offset_scene_track_target, 0.0);
   scene_transform->translate(initial_scene_translation_vec);
   //scene_transform->translate(initial_scene_translation_vec.x, initial_scene_translation_vec.y, initial_scene_translation_vec.z);
 	auto light_pointer = graph.add_node<gua::node::TransformNode>("/", "light_pointer");
@@ -306,7 +268,8 @@ int main(int argc, char** argv) {
                                                    lod_rough,
                                                    gua::LodLoader::NORMALIZE_POSITION | 
                                                    gua::LodLoader::NORMALIZE_SCALE);
-  plod_head->scale(0.1);
+  //plod_head->scale(0.1);
+
 	//define screen resolution
 	gua::math::vec2ui resolution;
 	#if !USE_LOW_RES_WORKSTATION
@@ -334,13 +297,9 @@ int main(int argc, char** argv) {
   int   window_width = 2560;
   int   window_height = 1440;
 
-
-
 	//physical setup of output viewport ///////////////
-  //auto screen_transform = graph.add_node<gua::node::TransformNode>("/", "screen_transform");
 	auto screen = graph.add_node<gua::node::ScreenNode>("/", "screen");
   screen->data.set_size(gua::math::vec2(screen_width, screen_height));
-  //////////////TMP
     
   #if USE_SIDE_BY_SIDE 
   screen->rotate(screen_rotation_x, 1, 0, 0);
@@ -350,7 +309,6 @@ int main(int argc, char** argv) {
   #else
   screen->translate(0, 0, -0.6);
   #endif
-  //////////////////////////////TMP
 
 	//camera configuration ///////////////////////////
   #if USE_SIDE_BY_SIDE 
@@ -371,7 +329,7 @@ int main(int argc, char** argv) {
   camera->config.set_screen_path("/screen");
   camera->config.set_scene_graph_name("main_scenegraph");
   camera->config.set_output_window_name("main_window");
-  camera->config.set_near_clip(0.01);
+  camera->config.set_near_clip(0.02);
   camera->config.set_far_clip(3000.0);
   camera->config.set_eye_dist(eye_dist);
 
@@ -379,10 +337,6 @@ int main(int argc, char** argv) {
 	auto pipe = std::make_shared<gua::PipelineDescription>();
 	build_pipe(*pipe);
 	camera->set_pipeline_description(pipe);
-
-  //TMP
-  //plod_head->set_draw_bounding_box(true);
-  //graph.add_node(scene_transform, plod_head);
 
   //////////////////input handling addapted from Lamure /////////////
   namespace po = boost::program_options;
@@ -394,7 +348,7 @@ int main(int argc, char** argv) {
     ("input,f", po::value<std::string>(), "specify input file with scene configuration")
     ("models,m", po::value <std::vector<std::string>>()->multitoken(), "list paths to desired input models")
   ;
-  //po::positional_options_description p;
+
   po::variables_map vm;
   std::vector<scm::math::mat4f> dummy_transformations;
 
@@ -426,6 +380,14 @@ int main(int argc, char** argv) {
       return 0;
     }
   ///////////////////////////////////////////////////
+
+  //ray_test
+  auto ray_node = graph.add_node<gua::node::RayNode>("/", "ray_node");
+
+    //TMP -- user geometry to signal the center of the tracking target
+  plod_head->set_draw_bounding_box(true);
+  plod_head->scale(0.1);
+  graph.add_node(ray_node, plod_head);
 
 	//add mouse interaction
 	gua::utils::Trackball trackball(0.1, 0.02, 0.02); 
@@ -479,6 +441,7 @@ int main(int argc, char** argv) {
 	//tracking //////////////////////////////////////
 	#if TRACKING_ENABLED
 	  gua::math::mat4 current_cam_tracking_matrix(gua::math::mat4::identity());
+    gua::math::mat4 current_pointer_tracking_matrix(gua::math::mat4::identity());
 
 	  std::thread tracking_thread([&]() {
       scm::inp::tracker::target_container targets;
@@ -491,7 +454,6 @@ int main(int argc, char** argv) {
         return;
       }
       while (true) {
-
        
         dtrack->update(targets);
         auto camera_target = targets.find(5)->second.transform();
@@ -506,6 +468,14 @@ int main(int argc, char** argv) {
           scene_root_target[13] /= 1000.f; 
           scene_root_target[14] /= 1000.f;
           current_scene_tracking_matrix = scene_root_target;
+        }
+
+        if(use_ray_pointer) {
+          auto ray_origin_target = targets.find(12)->second.transform();
+          ray_origin_target[12] /= 1000.f; 
+          ray_origin_target[13] /= 1000.f; 
+          ray_origin_target[14] /= 1000.f;
+          current_pointer_tracking_matrix = ray_origin_target;
         }
       }
     });
@@ -536,7 +506,14 @@ int main(int argc, char** argv) {
                                   * current_scene_rot_matrix
                                   * scm::math::make_scale(zoom_factor, zoom_factor, zoom_factor);
             scene_transform->set_transform(scene_transform_mat);
-          }          
+          }  
+
+          if(use_ray_pointer){
+            ray_node->set_transform(current_pointer_tracking_matrix);
+            auto intersection = ray_node->intersect(scene_transform->get_bounding_box());
+            std::cout<<"intersection front: " << intersection.first << "\n";
+            std::cout<<"intersection back: " << intersection.second << "\n";
+          }        
         #endif
     		renderer.queue_draw({&graph});
     	}
