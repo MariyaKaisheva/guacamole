@@ -37,9 +37,7 @@ class GUA_DLL NprTestPassDescription : public PipelinePassDescription {
 
   std::shared_ptr<PipelinePassDescription> make_copy() const override;
   NprTestPassDescription& sphere_radius(float value);
-  NprTestPassDescription& sphere_location_x(float value);
-  NprTestPassDescription& sphere_location_y(float value);
-  NprTestPassDescription& sphere_location_z(float value);
+  NprTestPassDescription& sphere_location(math::vec3f const& value);
 
   friend class Pipeline;
 

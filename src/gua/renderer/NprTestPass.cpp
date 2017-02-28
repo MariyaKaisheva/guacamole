@@ -68,23 +68,12 @@ namespace gua {
   uniforms["sphere_radius"] = value;
   return *this;
   }
-   ////////////////////////////////////////////////////////////////////////////////
-  NprTestPassDescription& NprTestPassDescription::sphere_location_x(float value)
+  
+  ////////////////////////////////////////////////////////////////////////////////
+  NprTestPassDescription& NprTestPassDescription::sphere_location(math::vec3f const& value)
   {
-  uniforms["sphere_location_x"] = value;
-  return *this;
-  }
-     ////////////////////////////////////////////////////////////////////////////////
-  NprTestPassDescription& NprTestPassDescription::sphere_location_y(float value)
-  {
-  uniforms["sphere_location_y"] = value;
-  return *this;
-  }
-     ////////////////////////////////////////////////////////////////////////////////
-  NprTestPassDescription& NprTestPassDescription::sphere_location_z(float value)
-  {
-  uniforms["sphere_location_z"] = value;
+  uniforms["sphere_location"] = value;
   return *this;
   }
 
-}
+} //namespace gua
