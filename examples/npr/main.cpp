@@ -37,6 +37,12 @@
 #include <gua/renderer/TexturedQuadPass.hpp>
 #include <gua/renderer/DebugViewPass.hpp>
 #include <gua/renderer/BBoxPass.hpp>
+// Npr-related gua heathers:
+#include <gua/renderer/ToonResolvePass.hpp> 
+#include <gua/renderer/NprTestPass.hpp>
+#include <gua/renderer/NprOutlinePass.hpp>
+#include <gua/renderer/NprBlendingPass.hpp>
+#include <gua/renderer/NPREffectPass.hpp>
 
 #include <boost/program_options.hpp>
 
@@ -47,16 +53,34 @@
 #define TRACKING_ENABLED 1
 #define USE_LOW_RES_WORKSTATION 0
 
-//global variables
+// global variables
 bool close_window = false;
 bool detach_scene_from_tracking_target = false;
 bool use_ray_pointer = false;
 std::vector<gua::math::BoundingBox<gua::math::vec3> > scene_bounding_boxes;
 auto zoom_factor = 1.0;
+float screen_width = 0.595f;
+float screen_height = 0.3346f;
 gua::math::mat4 current_scene_tracking_matrix(gua::math::mat4::identity());
 double x_offset_scene_track_target = 0.0;
-double y_offset_scene_track_target = 0.1;
+double y_offset_scene_track_target = 0.0;
 
+// Npr-related global variables ///////////
+bool use_toon_resolve_pass = false;
+bool apply_halftoning_effect = false;
+bool apply_bilateral_filter = false;
+bool create_screenspace_outlines = false;
+bool no_color = false; 
+auto surfel_render_mode = gua::PLodPassDescription::SurfelRenderMode::HQ_TWO_PASS;
+//---test use-case demo
+bool apply_blending = false;
+float test_sphere_radius = 0.2f;
+bool apply_test_demo = false;
+//---
+
+//auto plod_pass = std::make_shared<gua::PLodPassDescription>();
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // forward mouse interaction to trackball
 void mouse_button(gua::utils::Trackball& trackball,
                   int mousebutton,
@@ -89,20 +113,8 @@ void mouse_button(gua::utils::Trackball& trackball,
   trackball.mouse(button, state, trackball.posx(), trackball.posy());
 }
 
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void scale_scene (double zoom_factor, gua::SceneGraph& graph){
-  /*
-  //auto translation =  scm::math::make_translation(graph["scene_root"]->get_world_position());
-  auto translation = scm::math::make_translation(gua::math::get_translation(graph["scene_root"]->get_transform()) );
-  auto rotation = gua::math::get_rotation(graph["scene_root"]->get_transform());
-  auto scale = scm::math::make_scale(zoom_factor, zoom_factor, zoom_factor);
-  auto scene_transform_mat =  translation * rotation * scale;
-  auto transform = graph["scene_root"]->get_world_transform();
-  //std::cout << scene_transform_mat << "STM \n";
-  std::cout << translation << "TM \n";
-  std::cout << rotation << "RM \n";
-  //graph["scene_root"]->scale(zoom_factor);
-  graph["scene_root"]->set_transform(scene_transform_mat);
-  */
   auto current_scene_translation_vec = gua::math::get_translation(current_scene_tracking_matrix);
   auto current_scene_rot_matrix = gua::math::get_rotation(current_scene_tracking_matrix);
   auto scene_transform_mat = scm::math::make_translation(current_scene_translation_vec)
@@ -112,6 +124,63 @@ void scale_scene (double zoom_factor, gua::SceneGraph& graph){
   graph["/scene_root"]->set_transform(scene_transform_mat);
 }
 
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+void build_pipe (gua::PipelineDescription& pipe){
+  pipe.clear();
+  pipe.add_pass(std::make_shared<gua::PLodPassDescription>());
+  pipe.add_pass(std::make_shared<gua::LightVisibilityPassDescription>());
+  pipe.add_pass(std::make_shared<gua::ResolvePassDescription>()); 
+  pipe.add_pass(std::make_shared<gua::BBoxPassDescription>());
+ // pipe.add_pass(std::make_shared<gua::DebugViewPassDescription>());
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+void rebuild_pipe(gua::PipelineDescription& pipe) {
+  pipe.clear();
+  auto plod_pass = std::make_shared<gua::PLodPassDescription>();
+
+  plod_pass->mode(surfel_render_mode);
+  plod_pass->touch();
+  pipe.add_pass(plod_pass);
+  pipe.add_pass(std::make_shared<gua::LightVisibilityPassDescription>());
+
+  if(!use_toon_resolve_pass){
+    pipe.add_pass(std::make_shared<gua::ResolvePassDescription>());  
+  }
+  else{
+    pipe.add_pass(std::make_shared<gua::ToonResolvePassDescription>());
+  }
+
+  if(apply_test_demo){
+    pipe.add_pass(std::make_shared<gua::NprTestPassDescription>());
+    pipe.get_npr_test_pass()->sphere_radius(test_sphere_radius);
+    std::cout << "Test-demo-pass On with sphere r: " << test_sphere_radius << "\n";
+  }
+   
+  if (apply_bilateral_filter){
+    //for(int i = 0; i < num_screenspace_passes; ++i){
+      pipe.add_pass(std::make_shared<gua::NPREffectPassDescription>());
+    //}
+  }
+  
+  if (create_screenspace_outlines || apply_halftoning_effect){
+    pipe.add_pass(std::make_shared<gua::NprOutlinePassDescription>());
+    pipe.get_npr_outline_pass()->halftoning(apply_halftoning_effect);
+    pipe.get_npr_outline_pass()->apply_outline(create_screenspace_outlines);
+    pipe.get_npr_outline_pass()->store_for_blending(false);
+    pipe.get_npr_outline_pass()->no_color(no_color);
+
+    if (apply_blending){
+      pipe.get_npr_outline_pass()->store_for_blending(true);
+      pipe.add_pass(std::make_shared<gua::NprBlendingPassDescription>());
+    }
+  }
+  pipe.add_pass(std::make_shared<gua::BBoxPassDescription>());
+  pipe.add_pass(std::make_shared<gua::DebugViewPassDescription>());
+  //pipe.add_pass(std::make_shared<gua::SSAAPassDescription>());
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //key-board interactions
 void key_press(gua::PipelineDescription& pipe, 
 			   gua::SceneGraph& graph, 
@@ -125,6 +194,18 @@ void key_press(gua::PipelineDescription& pipe,
       close_window = true;
   }
 
+  // Npr-related options: 
+  //surfel rende modes
+  if(14 == scancode && action == 1){ // '5'
+    surfel_render_mode = gua::PLodPassDescription::SurfelRenderMode::LQ_ONE_PASS;
+    rebuild_pipe(pipe);
+  }
+
+  if(15 == scancode && action == 1){ // '6'
+    surfel_render_mode = gua::PLodPassDescription::SurfelRenderMode::HQ_TWO_PASS;
+    rebuild_pipe(pipe);
+  }
+
   //toogle scene position tracking
   if(65 == scancode && action == 1){ //'Spacebar'
       detach_scene_from_tracking_target = !detach_scene_from_tracking_target;
@@ -133,11 +214,8 @@ void key_press(gua::PipelineDescription& pipe,
   if(108 == scancode && action == 1){ //'right Alt'
       use_ray_pointer = !use_ray_pointer;
   }
+  if (action == 0) return;
 	switch(std::tolower(key)){
-		case 't':
-		  std::cout << "t key was pressed \n";
-		  break;
-
     case '-':
       if(zoom_factor > 0.05){
         zoom_factor -= 0.05;
@@ -150,20 +228,87 @@ void key_press(gua::PipelineDescription& pipe,
         scale_scene(zoom_factor, graph);
       break;
 
+    //Npr-related options: 
+    //shading mode
+    case 'g':
+        if(use_toon_resolve_pass){
+          if(pipe.get_toon_resolve_pass()->enable_gooch_shading()) {
+            pipe.get_toon_resolve_pass()->enable_gooch_shading(false);
+          }
+          else {
+            pipe.get_toon_resolve_pass()->enable_gooch_shading(true);
+          }
+        }  
+      break;
+
+    //toogle resolve pass
+    case 'r':
+        use_toon_resolve_pass = !use_toon_resolve_pass;
+        rebuild_pipe(pipe);
+      break; 
+
+    //bilateral filter - screenspace passcreate_screenspace_outlines =
+    case 'b':
+        apply_bilateral_filter = !apply_bilateral_filter;
+        rebuild_pipe(pipe);
+      break; 
+    
+    //halftoning mode - screenspace pass
+    case 'h':
+        apply_halftoning_effect = !apply_halftoning_effect;
+        rebuild_pipe(pipe);
+      break;
+
+    //toogle outlines - screenspace pass
+    case 'l':
+        create_screenspace_outlines = !create_screenspace_outlines;
+        rebuild_pipe(pipe);
+      break;
+
+    //toggle color filling
+    case 'k':
+        no_color = !no_color;
+        rebuild_pipe(pipe);
+      break;
+
+    //toogle test visualization
+    case 't':
+        apply_test_demo = !apply_test_demo;
+        apply_blending = !apply_blending;
+        rebuild_pipe(pipe);
+      break;
+    //decrease blending sphere radius
+    case 'n':
+        if(test_sphere_radius >= 0.005f && apply_test_demo){
+          test_sphere_radius -=0.005f;
+          pipe.get_npr_test_pass()->sphere_radius(test_sphere_radius);
+          std::cout << "test_sphere_radius: " << test_sphere_radius << "\n"; 
+        }
+      break;
+    //increase blending sphere radius
+    case 'm':
+        if(test_sphere_radius <= 0.95f && apply_test_demo){
+          test_sphere_radius += 0.05f;
+          pipe.get_npr_test_pass()->sphere_radius(test_sphere_radius);
+        }
+      break;
+
+    //reset pipeline
+    case 'o': 
+        use_toon_resolve_pass = false;
+        create_screenspace_outlines = false; 
+        apply_test_demo = false;
+        apply_bilateral_filter = false; 
+        apply_halftoning_effect = false;
+        rebuild_pipe(pipe);
+      break;  
+    
     default:
       break;
 	}
 }
 
-void build_pipe (gua::PipelineDescription& pipe){
-	pipe.clear();
-  pipe.add_pass(std::make_shared<gua::PLodPassDescription>());
-	pipe.add_pass(std::make_shared<gua::LightVisibilityPassDescription>());
-  pipe.add_pass(std::make_shared<gua::ResolvePassDescription>()); 
-  pipe.add_pass(std::make_shared<gua::BBoxPassDescription>());
- // pipe.add_pass(std::make_shared<gua::DebugViewPassDescription>());
-}
-
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 std::pair<std::vector<std::string>, std::vector<scm::math::mat4f>> interpret_config_file(std::string const&  path_to_file) {
   namespace fs = boost::filesystem;
   std::vector<scm::math::mat4f> model_transformations;
@@ -184,6 +329,7 @@ std::pair<std::vector<std::string>, std::vector<scm::math::mat4f>> interpret_con
   return std::make_pair(model_filenames, model_transformations);
 }
 
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void add_models_to_graph(std::vector<std::string> const& model_files, 
                          gua::SceneGraph& graph,
                          std::vector<scm::math::mat4f> const& model_transformations){
@@ -194,35 +340,19 @@ void add_models_to_graph(std::vector<std::string> const& model_files,
     scene_bounding_boxes.push_back(plod_node->get_bounding_box()); 
     plod_node->set_draw_bounding_box(true);
   }
-    //auto normalization_values = compute_normalizing_transformations(scene_bounding_boxes);
    
     graph["/scene_root"]->update_bounding_box();
     auto scene_bbox = graph["/scene_root"]->get_bounding_box();
-   // auto total_max_point = scene_bbox.max;
-   // auto total_min_point = scene_bbox.min;
-    //TODO: should use screen width as fration numerator??? 
-    //this number represents the desired length of longest diagonal of bbox 
-    float screen_width = 0.595f;
-    float screen_height = 0.3346f;
-    float screen_diagonal = std::sqrt(screen_width*screen_width + screen_height*screen_height);
-    float screen_volume_depth = 0.2;
-    float scaling_fraction_numerator =  std::sqrt(screen_diagonal*screen_diagonal + screen_volume_depth*screen_volume_depth);
-
     auto size_along_x = scene_bbox.size(0);
     auto size_along_y = scene_bbox.size(1);
     auto size_along_z = scene_bbox.size(2);
     std::cout << size_along_x <<" x " << size_along_y <<" y " << size_along_z <<" z " << "SF\n";
     auto longest_axis = std::max(std::max(size_along_x, size_along_y), std::max(size_along_y, size_along_z));
-    //float scaling_factor = scaling_fraction_numerator / scm::math::length(total_max_point - total_min_point);
+    
     float scaling_factor = screen_width / (longest_axis*4.0);
     std::cout << scaling_factor << "SF\n";
     auto all_geometry_nodes = graph["/scene_root"]->get_children();
     for(auto& node : all_geometry_nodes){
-      //auto tramformation_mat = node->get_world_transform();
-      //auto local_transform = scm::math::make_translation(gua::math::get_translation(tramformation_mat));
-      //auto local_transform = scm::math::make_translation(node->get_world_position());
-      //auto local_transform_2 = node->get_geometry()->local_transform();
-      //auto bbox_center_object_space = local_transform * gua::math::vec4(scene_bbox.center().x, scene_bbox.center().y, scene_bbox.center().z, 1.0);
       node->translate(-scene_bbox.center().x, -scene_bbox.center().y, -scene_bbox.center().z);
       node->translate(0.0, 1.6, 0.0);
       node->scale(scaling_factor);
@@ -231,10 +361,10 @@ void add_models_to_graph(std::vector<std::string> const& model_files,
     
    graph["/scene_root"]->set_draw_bounding_box(true);   
 }
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 int main(int argc, char** argv) {
   // initialize guacamole
   gua::init(1, argv);
@@ -335,7 +465,7 @@ int main(int argc, char** argv) {
 
   //add pipeline with rendering passes
 	auto pipe = std::make_shared<gua::PipelineDescription>();
-	build_pipe(*pipe);
+	rebuild_pipe(*pipe);
 	camera->set_pipeline_description(pipe);
 
   //////////////////input handling addapted from Lamure /////////////
@@ -465,7 +595,8 @@ int main(int argc, char** argv) {
         if(!detach_scene_from_tracking_target) {
           auto scene_root_target = targets.find(12)->second.transform();
           scene_root_target[12] /= 1000.f; 
-          scene_root_target[13] /= 1000.f; 
+          scene_root_target[13] /= 1000.f;
+          scene_root_target[13] += y_offset_scene_track_target; //add vertical offset for user convenience 
           scene_root_target[14] /= 1000.f;
           current_scene_tracking_matrix = scene_root_target;
         }
@@ -509,10 +640,12 @@ int main(int argc, char** argv) {
           }  
 
           if(use_ray_pointer){
-            ray_node->set_transform(current_pointer_tracking_matrix);
-            auto intersection = ray_node->intersect(scene_transform->get_bounding_box());
-            std::cout<<"intersection front: " << intersection.first << "\n";
-            std::cout<<"intersection back: " << intersection.second << "\n";
+            ray_node->set_transform(current_pointer_tracking_matrix*scm::math::make_scale(0.02, 0.02, 0.4));
+            //auto intersection = ray_node->intersect(scene_transform->get_bounding_box()); //TODO take var initialization out of the application loop
+            if(apply_test_demo){
+              pipe->get_npr_test_pass()->sphere_location((gua::math::vec3f)gua::math::get_translation(current_pointer_tracking_matrix));
+              //std::cout << "Pointer position: " << (gua::math::vec3f)gua::math::get_translation(current_pointer_tracking_matrix) << "\n"; 
+            }
           }        
         #endif
     		renderer.queue_draw({&graph});
