@@ -65,6 +65,8 @@ gua::math::mat4 current_scene_tracking_matrix(gua::math::mat4::identity());
 double x_offset_scene_track_target = 0.0;
 double y_offset_scene_track_target = 0.0;
 
+float error_threshold = 3.7f; //for point cloud models
+
 // Npr-related global variables ///////////
 bool use_toon_resolve_pass = false;
 bool apply_halftoning_effect = false;
@@ -72,13 +74,14 @@ bool apply_bilateral_filter = false;
 bool create_screenspace_outlines = false;
 bool no_color = false; 
 auto surfel_render_mode = gua::PLodPassDescription::SurfelRenderMode::HQ_TWO_PASS;
+std::string textrue_file_path = "data/textures/dark_red.png";
 //---test use-case demo
 bool apply_blending = false;
-float test_sphere_radius = 0.2f;
+float test_sphere_radius = 0.1f;
 bool apply_test_demo = false;
 //---
 
-//auto plod_pass = std::make_shared<gua::PLodPassDescription>();
+auto plod_pass = std::make_shared<gua::PLodPassDescription>();
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // forward mouse interaction to trackball
@@ -127,6 +130,7 @@ void scale_scene (double zoom_factor, gua::SceneGraph& graph){
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void build_pipe (gua::PipelineDescription& pipe){
   pipe.clear();
+  pipe.add_pass(std::make_shared<gua::TriMeshPassDescription>());//tmp
   pipe.add_pass(std::make_shared<gua::PLodPassDescription>());
   pipe.add_pass(std::make_shared<gua::LightVisibilityPassDescription>());
   pipe.add_pass(std::make_shared<gua::ResolvePassDescription>()); 
@@ -137,7 +141,8 @@ void build_pipe (gua::PipelineDescription& pipe){
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void rebuild_pipe(gua::PipelineDescription& pipe) {
   pipe.clear();
-  auto plod_pass = std::make_shared<gua::PLodPassDescription>();
+  //auto plod_pass = std::make_shared<gua::PLodPassDescription>();
+  pipe.add_pass(std::make_shared<gua::TriMeshPassDescription>());//tmp
 
   plod_pass->mode(surfel_render_mode);
   plod_pass->touch();
@@ -198,11 +203,13 @@ void key_press(gua::PipelineDescription& pipe,
   //surfel rende modes
   if(14 == scancode && action == 1){ // '5'
     surfel_render_mode = gua::PLodPassDescription::SurfelRenderMode::LQ_ONE_PASS;
+    std::cout << "LQ_ONE_PASS \n";
     rebuild_pipe(pipe);
   }
 
   if(15 == scancode && action == 1){ // '6'
     surfel_render_mode = gua::PLodPassDescription::SurfelRenderMode::HQ_TWO_PASS;
+    std::cout << "HQ_TWO_PASS \n";
     rebuild_pipe(pipe);
   }
 
@@ -217,7 +224,7 @@ void key_press(gua::PipelineDescription& pipe,
   if (action == 0) return;
 	switch(std::tolower(key)){
     case '-':
-      if(zoom_factor > 0.05){
+      if(zoom_factor > 0.06){
         zoom_factor -= 0.05;
       }
       scale_scene(zoom_factor, graph);
@@ -226,6 +233,18 @@ void key_press(gua::PipelineDescription& pipe,
     case '=':
         zoom_factor += 0.05;
         scale_scene(zoom_factor, graph);
+      break;
+
+    case 'z':
+        if(error_threshold <= 400.0){
+          error_threshold += 2.0;
+        }
+      break;
+
+    case 'x':
+        if(error_threshold >= 0.2){
+          error_threshold -= 0.19;
+        }
       break;
 
     //Npr-related options: 
@@ -279,8 +298,8 @@ void key_press(gua::PipelineDescription& pipe,
       break;
     //decrease blending sphere radius
     case 'n':
-        if(test_sphere_radius >= 0.005f && apply_test_demo){
-          test_sphere_radius -=0.005f;
+        if(test_sphere_radius > 0.005f && apply_test_demo){
+          test_sphere_radius -= 0.005f;
           pipe.get_npr_test_pass()->sphere_radius(test_sphere_radius);
           std::cout << "test_sphere_radius: " << test_sphere_radius << "\n"; 
         }
@@ -334,13 +353,34 @@ void add_models_to_graph(std::vector<std::string> const& model_files,
                          gua::SceneGraph& graph,
                          std::vector<scm::math::mat4f> const& model_transformations){
   gua::LodLoader lod_loader;
+  /*auto colorful_material(gua::MaterialShaderDatabase::instance()
+                          ->lookup("gua_default_material")
+                          ->make_new_material());
+  colorful_material->set_uniform("ColorMap", textrue_file_path);*/
+
+       //tmp texture for point cloud npr test
+    gua::TextureDatabase::instance()->load(textrue_file_path);
+    auto tex = gua::TextureDatabase::instance()->lookup(textrue_file_path);
+
+  //int model_counter = 0;
   for (auto& model : model_files) {
+
+    //auto plod_node = lod_loader.load_lod_pointcloud("plod_node_" + std::to_string(model_counter), model, colorful_material);
     auto plod_node = lod_loader.load_lod_pointcloud(model);
+    plod_node->set_texture(tex);
+    //model_counter += 1;
+    //plod_node->get_material()->set_uniform("ColorMap", std::string("data/textures/colored_grid.png"));
+     // auto lod_keep_input_desc = std::make_shared<gua::MaterialShaderDescription>("./data/materials/PLOD_use_input_color.gmd");
+  //auto lod_keep_color_shader(std::make_shared<gua::MaterialShader>("PLOD_pass_input_color", lod_keep_input_desc));
+  //gua::MaterialShaderDatabase::instance()->add(lod_keep_color_shader);
+ //   auto plod_material = plod_node->get_material();
+  //  plod_material->set_uniform("ColorMap", std::string("data/textures/colored_grid.png"));
+  //  plod_node->set_material(plod_material);
     graph.add_node("/scene_root", plod_node); 
     scene_bounding_boxes.push_back(plod_node->get_bounding_box()); 
     plod_node->set_draw_bounding_box(true);
   }
-   
+   //std::dynamic_pointer_cast<gua::node::PLodNode>(node)->get_material()->set_uniform("ColorMap", std::string("data/textures/colored_grid.png"));
     graph["/scene_root"]->update_bounding_box();
     auto scene_bbox = graph["/scene_root"]->get_bounding_box();
     auto size_along_x = scene_bbox.size(0);
@@ -382,7 +422,7 @@ int main(int argc, char** argv) {
 
   //TMP try loading sample models to see if window gets created
   //create simple untextured material shader
-  auto lod_keep_input_desc = std::make_shared<gua::MaterialShaderDescription>("./data/materials/PLOD_use_input_color.gmd");
+  /*auto lod_keep_input_desc = std::make_shared<gua::MaterialShaderDescription>("./data/materials/PLOD_use_input_color.gmd");
   auto lod_keep_color_shader(std::make_shared<gua::MaterialShader>("PLOD_pass_input_color", lod_keep_input_desc));
   gua::MaterialShaderDatabase::instance()->add(lod_keep_color_shader);
   auto lod_rough = lod_keep_color_shader->make_new_material();
@@ -392,13 +432,41 @@ int main(int argc, char** argv) {
   gua::LodLoader lod_loader;
   lod_loader.set_out_of_core_budget_in_mb(8000);
   lod_loader.set_render_budget_in_mb(6000);
-  lod_loader.set_upload_budget_in_mb(32);
-  auto plod_head = lod_loader.load_lod_pointcloud("pointcloud_head",
+  lod_loader.set_upload_budget_in_mb(32);*/
+  /*auto plod_head = lod_loader.load_lod_pointcloud("pointcloud_head",
                                                    "/mnt/pitoti/hallermann_scans/bruecke2/0_kopf_local.bvh",
                                                    lod_rough,
-                                                   gua::LodLoader::NORMALIZE_POSITION | 
-                                                   gua::LodLoader::NORMALIZE_SCALE);
-  //plod_head->scale(0.1);
+                                                   gua::LodLoader::NORMALIZE_POSITION |
+                                                   gua::LodLoader::NORMALIZE_SCALE);*/
+
+
+
+
+  auto snail_material(gua::MaterialShaderDatabase::instance()
+                      ->lookup("gua_default_material")
+                      ->make_new_material());
+
+   snail_material->set_uniform("Roughness", 0.0f);
+   snail_material->set_uniform("Metalness", 0.0f);
+
+  std::string directory("data/textures/");
+  snail_material->set_uniform("ColorMap", directory + "blue_marks.png");
+  snail_material->set_uniform("Emissivity", 1.0f);
+  snail_material->set_show_back_faces(true);
+
+  gua::TriMeshLoader   trimesh_loader;
+  auto ring_geometry(trimesh_loader.create_geometry_from_file(
+                "icosphere", "data/objects/dashed_ring_1b025.obj", 
+                snail_material,
+                gua::TriMeshLoader::NORMALIZE_POSITION |
+                gua::TriMeshLoader::NORMALIZE_SCALE )); 
+  //ring_geometry->scale(sphere_radius/0.2);
+
+  auto sphere(trimesh_loader.create_geometry_from_file(
+                "icosphere", "data/objects/icosphere.obj", 
+                gua::TriMeshLoader::NORMALIZE_POSITION |
+                gua::TriMeshLoader::NORMALIZE_SCALE |
+                gua::TriMeshLoader::LOAD_MATERIALS));
 
 	//define screen resolution
 	gua::math::vec2ui resolution;
@@ -463,12 +531,7 @@ int main(int argc, char** argv) {
   camera->config.set_far_clip(3000.0);
   camera->config.set_eye_dist(eye_dist);
 
-  //add pipeline with rendering passes
-	auto pipe = std::make_shared<gua::PipelineDescription>();
-	rebuild_pipe(*pipe);
-	camera->set_pipeline_description(pipe);
-
-  //////////////////input handling addapted from Lamure /////////////
+   //////////////////input handling addapted from Lamure /////////////
   namespace po = boost::program_options;
  
   std::string resource_file = "auto_generated.rsc";
@@ -511,13 +574,18 @@ int main(int argc, char** argv) {
     }
   ///////////////////////////////////////////////////
 
+   //add pipeline with rendering passes
+  auto pipe = std::make_shared<gua::PipelineDescription>();
+  rebuild_pipe(*pipe);
+  camera->set_pipeline_description(pipe);
+
   //ray_test
   auto ray_node = graph.add_node<gua::node::RayNode>("/", "ray_node");
 
-    //TMP -- user geometry to signal the center of the tracking target
-  plod_head->set_draw_bounding_box(true);
-  plod_head->scale(0.1);
-  graph.add_node(ray_node, plod_head);
+  //TMP -- user geometry to signal the center of the tracking target
+  sphere->scale(0.0005);
+  graph.add_node(ray_node, sphere);
+  graph.add_node(ray_node, ring_geometry);
 
 	//add mouse interaction
 	gua::utils::Trackball trackball(0.1, 0.02, 0.02); 
@@ -627,7 +695,7 @@ int main(int argc, char** argv) {
     	}
     	else {
         #if(USE_SIDE_BY_SIDE && TRACKING_ENABLED)
-          #if 0
+          #if 1
             camera->set_transform(current_cam_tracking_matrix);
           #endif 
           if(!detach_scene_from_tracking_target){
@@ -640,13 +708,21 @@ int main(int argc, char** argv) {
           }  
 
           if(use_ray_pointer){
-            ray_node->set_transform(current_pointer_tracking_matrix*scm::math::make_scale(0.02, 0.02, 0.4));
+            double scale_factor = test_sphere_radius*0.5;
+            ray_node->set_transform(current_pointer_tracking_matrix*scm::math::make_scale(scale_factor, scale_factor, scale_factor));
             //auto intersection = ray_node->intersect(scene_transform->get_bounding_box()); //TODO take var initialization out of the application loop
             if(apply_test_demo){
               pipe->get_npr_test_pass()->sphere_location((gua::math::vec3f)gua::math::get_translation(current_pointer_tracking_matrix));
               //std::cout << "Pointer position: " << (gua::math::vec3f)gua::math::get_translation(current_pointer_tracking_matrix) << "\n"; 
             }
-          }        
+          }
+
+          /*if (surfel_render_mode ==  gua::PLodPassDescription::SurfelRenderMode::LQ_ONE_PASS) {*/
+            for(auto& scene_node : scene_transform->get_children()){
+              std::dynamic_pointer_cast<gua::node::PLodNode>(scene_node)->set_error_threshold(error_threshold);
+            }
+          //}
+
         #endif
     		renderer.queue_draw({&graph});
     	}
