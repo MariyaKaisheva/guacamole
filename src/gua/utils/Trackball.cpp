@@ -162,5 +162,11 @@ void Trackball::motion(int x, int y)
   mousepos_x_ = x;
 }
 
+//Temp/////////////////////////////////////////////////////////////////////////
+bool Trackball::get_left_button_press_state() const
+{
+  return button_left_;
+}
+
 }
 }

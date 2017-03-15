@@ -56,6 +56,8 @@
 // global variables
 bool close_window = false;
 bool detach_scene_from_tracking_target = false;
+bool force_detach_on_key_press = false;
+bool offset_adjustment_on_click = false;
 bool use_ray_pointer = false;
 std::vector<gua::math::BoundingBox<gua::math::vec3> > scene_bounding_boxes;
 auto zoom_factor = 1.0;
@@ -64,6 +66,7 @@ float screen_height = 0.3346f;
 gua::math::mat4 current_scene_tracking_matrix(gua::math::mat4::identity());
 double x_offset_scene_track_target = 0.0;
 double y_offset_scene_track_target = 0.0;
+double z_offset_scene_track_target = 0.0;
 
 float error_threshold = 3.7f; //for point cloud models
 
@@ -114,6 +117,14 @@ void mouse_button(gua::utils::Trackball& trackball,
   };
 
   trackball.mouse(button, state, trackball.posx(), trackball.posy());
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+void change_scene_probe_offset(scm::math::vec3d& target_translation_vector, scm::math::vec3d&  old_scene_position){
+  x_offset_scene_track_target = std::fabs(target_translation_vector.x - old_scene_position.x);
+  y_offset_scene_track_target = std::fabs(target_translation_vector.y - old_scene_position.y);
+  z_offset_scene_track_target = std::fabs(target_translation_vector.z - old_scene_position.z);
+
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -215,7 +226,7 @@ void key_press(gua::PipelineDescription& pipe,
 
   //toogle scene position tracking
   if(65 == scancode && action == 1){ //'Spacebar'
-      detach_scene_from_tracking_target = !detach_scene_from_tracking_target;
+      force_detach_on_key_press = !force_detach_on_key_press;
   }
   //toogle pointer position tracking
   if(108 == scancode && action == 1){ //'right Alt'
@@ -644,7 +655,7 @@ int main(int argc, char** argv) {
 	  std::thread tracking_thread([&]() {
       scm::inp::tracker::target_container targets;
       targets.insert(scm::inp::tracker::target_container::value_type(5, scm::inp::target(5)));
-      targets.insert(scm::inp::tracker::target_container::value_type(12, scm::inp::target(12)));
+      targets.insert(scm::inp::tracker::target_container::value_type(22, scm::inp::target(22)));
 
       scm::inp::art_dtrack* dtrack(new scm::inp::art_dtrack(5000));
       if (!dtrack->initialize()) {
@@ -660,17 +671,16 @@ int main(int argc, char** argv) {
         camera_target[14] /= 1000.f;
         current_cam_tracking_matrix = camera_target;
 
-        if(!detach_scene_from_tracking_target) {
-          auto scene_root_target = targets.find(12)->second.transform();
+       if(!detach_scene_from_tracking_target || offset_adjustment_on_click){
+          auto scene_root_target = targets.find(22)->second.transform();
           scene_root_target[12] /= 1000.f; 
           scene_root_target[13] /= 1000.f;
-          scene_root_target[13] += y_offset_scene_track_target; //add vertical offset for user convenience 
           scene_root_target[14] /= 1000.f;
           current_scene_tracking_matrix = scene_root_target;
         }
 
         if(use_ray_pointer) {
-          auto ray_origin_target = targets.find(12)->second.transform();
+          auto ray_origin_target = targets.find(22)->second.transform();
           ray_origin_target[12] /= 1000.f; 
           ray_origin_target[13] /= 1000.f; 
           ray_origin_target[14] /= 1000.f;
@@ -698,8 +708,32 @@ int main(int argc, char** argv) {
           #if 1
             camera->set_transform(current_cam_tracking_matrix);
           #endif 
-          if(!detach_scene_from_tracking_target){
-            auto current_scene_translation_vec = gua::math::get_translation(current_scene_tracking_matrix);
+
+          auto current_scene_translation_vec = gua::math::get_translation(current_scene_tracking_matrix);
+          auto current_scene_postion = gua::math::get_translation(scene_transform->get_world_transform());
+
+         
+          //std::cout << "current_scene_postion " << current_scene_postion << "\n";
+          if(trackball.get_left_button_press_state()){
+            std::cout << "x_offset_scene_track_target " << x_offset_scene_track_target<< "\n";
+            detach_scene_from_tracking_target = true;
+            offset_adjustment_on_click = true;
+            change_scene_probe_offset(current_scene_translation_vec, current_scene_postion);
+            //std::cout << "current_scene_postion " << current_scene_postion << "\n";
+
+          }
+          else{
+             offset_adjustment_on_click = false;
+             detach_scene_from_tracking_target = false;
+             //std::cout << "x_offset NC" << x_offset_scene_track_target<< "\n";
+             //std::cout << "current_scene_postion After!" << gua::math::get_translation(scene_transform->get_world_transform()) << "\n";
+          }
+
+          if(!detach_scene_from_tracking_target && !force_detach_on_key_press){
+            //auto current_scene_translation_vec = gua::math::get_translation(current_scene_tracking_matrix);
+            current_scene_translation_vec.x += x_offset_scene_track_target;
+            current_scene_translation_vec.y += y_offset_scene_track_target;
+            current_scene_translation_vec.z += z_offset_scene_track_target;
             auto current_scene_rot_matrix = gua::math::get_rotation(current_scene_tracking_matrix);
             scene_transform_mat = scm::math::make_translation(current_scene_translation_vec)
                                   * current_scene_rot_matrix
@@ -717,11 +751,9 @@ int main(int argc, char** argv) {
             }
           }
 
-          /*if (surfel_render_mode ==  gua::PLodPassDescription::SurfelRenderMode::LQ_ONE_PASS) {*/
-            for(auto& scene_node : scene_transform->get_children()){
-              std::dynamic_pointer_cast<gua::node::PLodNode>(scene_node)->set_error_threshold(error_threshold);
-            }
-          //}
+          for(auto& scene_node : scene_transform->get_children()){
+            std::dynamic_pointer_cast<gua::node::PLodNode>(scene_node)->set_error_threshold(error_threshold);
+          }
 
         #endif
     		renderer.queue_draw({&graph});

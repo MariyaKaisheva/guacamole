@@ -65,6 +65,9 @@ public:
   void                mouse(enum button_type button, enum state_type state, int x, int y);
   void                motion(int x, int y);
 
+  //Temp
+  bool                get_left_button_press_state() const;
+
 private:
 
   // trackball configuration
