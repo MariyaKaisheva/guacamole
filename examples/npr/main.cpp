@@ -54,7 +54,9 @@
 #define USE_LOW_RES_WORKSTATION 0
 
 // global variables
+bool print_mat = false; //tmp
 bool close_window = false;
+bool reset_scene_position = false;
 bool detach_scene_from_tracking_target = false;
 bool force_detach_on_key_press = false;
 bool offset_adjustment_on_click = false;
@@ -63,12 +65,14 @@ std::vector<gua::math::BoundingBox<gua::math::vec3> > scene_bounding_boxes;
 auto zoom_factor = 1.0;
 float screen_width = 0.595f;
 float screen_height = 0.3346f;
-gua::math::mat4 current_scene_tracking_matrix(gua::math::mat4::identity());
+gua::math::mat4 current_probe_tracking_matrix(gua::math::mat4::identity());
 double x_offset_scene_track_target = 0.0;
 double y_offset_scene_track_target = 0.0;
 double z_offset_scene_track_target = 0.0;
 
 float error_threshold = 3.7f; //for point cloud models
+
+std::string scenegraph_path = "/scene_root";
 
 // Npr-related global variables ///////////
 bool use_toon_resolve_pass = false;
@@ -129,13 +133,13 @@ void change_scene_probe_offset(scm::math::vec3d& target_translation_vector, scm:
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void scale_scene (double zoom_factor, gua::SceneGraph& graph){
-  auto current_scene_translation_vec = gua::math::get_translation(current_scene_tracking_matrix);
-  auto current_scene_rot_matrix = gua::math::get_rotation(current_scene_tracking_matrix);
-  auto scene_transform_mat = scm::math::make_translation(current_scene_translation_vec)
-                             * current_scene_rot_matrix
-                             * scm::math::make_scale(zoom_factor, zoom_factor, zoom_factor);
+  auto curent_scene_transform_mat = graph[scenegraph_path]->get_world_transform();
+  gua::math::vec3 current_scale_factor_vec = gua::math::vec3(gua::math::get_scale(curent_scene_transform_mat));
+  auto scale_correction_mat = scm::math::make_scale(1.0/current_scale_factor_vec.x, 1.0/current_scale_factor_vec.x, 1.0/current_scale_factor_vec.x);
+  auto scene_scaling_mat = scale_correction_mat*scm::math::make_scale(zoom_factor, zoom_factor, zoom_factor);
+  auto scene_transform_mat = curent_scene_transform_mat*scene_scaling_mat;
 
-  graph["/scene_root"]->set_transform(scene_transform_mat);
+  graph[scenegraph_path]->set_transform(scene_transform_mat);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -207,7 +211,11 @@ void key_press(gua::PipelineDescription& pipe,
   //std::cout << scancode << "scancode\n";
   
   if(9 == scancode){ //'Esc'
-      close_window = true;
+    close_window = true;
+  }
+
+  if(51 == scancode && action == 1){ // '\'
+    reset_scene_position = true;
   }
 
   // Npr-related options: 
@@ -242,8 +250,8 @@ void key_press(gua::PipelineDescription& pipe,
       break;
 
     case '=':
-        zoom_factor += 0.05;
-        scale_scene(zoom_factor, graph);
+      zoom_factor += 0.05;
+      scale_scene(zoom_factor, graph);
       break;
 
     case 'z':
@@ -256,6 +264,10 @@ void key_press(gua::PipelineDescription& pipe,
         if(error_threshold >= 0.2){
           error_threshold -= 0.19;
         }
+      break;
+
+    case 'p':
+      print_mat = !print_mat;
       break;
 
     //Npr-related options: 
@@ -387,13 +399,13 @@ void add_models_to_graph(std::vector<std::string> const& model_files,
  //   auto plod_material = plod_node->get_material();
   //  plod_material->set_uniform("ColorMap", std::string("data/textures/colored_grid.png"));
   //  plod_node->set_material(plod_material);
-    graph.add_node("/scene_root", plod_node); 
+    graph.add_node(scenegraph_path, plod_node); 
     scene_bounding_boxes.push_back(plod_node->get_bounding_box()); 
     plod_node->set_draw_bounding_box(true);
   }
    //std::dynamic_pointer_cast<gua::node::PLodNode>(node)->get_material()->set_uniform("ColorMap", std::string("data/textures/colored_grid.png"));
-    graph["/scene_root"]->update_bounding_box();
-    auto scene_bbox = graph["/scene_root"]->get_bounding_box();
+    graph[scenegraph_path]->update_bounding_box();
+    auto scene_bbox = graph[scenegraph_path]->get_bounding_box();
     auto size_along_x = scene_bbox.size(0);
     auto size_along_y = scene_bbox.size(1);
     auto size_along_z = scene_bbox.size(2);
@@ -402,7 +414,7 @@ void add_models_to_graph(std::vector<std::string> const& model_files,
     
     float scaling_factor = screen_width / (longest_axis*4.0);
     std::cout << scaling_factor << "SF\n";
-    auto all_geometry_nodes = graph["/scene_root"]->get_children();
+    auto all_geometry_nodes = graph[scenegraph_path]->get_children();
     for(auto& node : all_geometry_nodes){
       node->translate(-scene_bbox.center().x, -scene_bbox.center().y, -scene_bbox.center().z);
       node->translate(0.0, 1.6, 0.0);
@@ -410,7 +422,7 @@ void add_models_to_graph(std::vector<std::string> const& model_files,
       node->set_draw_bounding_box(true);
     }
     
-   graph["/scene_root"]->set_draw_bounding_box(true);   
+   graph[scenegraph_path]->set_draw_bounding_box(true);   
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -423,8 +435,10 @@ int main(int argc, char** argv) {
 	//setup scene ////////////////////////////////////
 	gua::SceneGraph graph("main_scenegraph");
 	auto scene_transform = graph.add_node<gua::node::TransformNode>("/", "scene_root");
+  //auto scene_translation_node = graph.add_node<gua::node::TransformNode>("/", "translation_node");
+  //auto scene_rotation_node = graph.add_node<gua::node::TransformNode>("/translation_node", "rotation_node");
   auto initial_scene_translation_vec = scm::math::vec<double, 3u>(0.0, y_offset_scene_track_target, 0.0);
-  scene_transform->translate(initial_scene_translation_vec);
+  //scene_transform->translate(initial_scene_translation_vec);
   //scene_transform->translate(initial_scene_translation_vec.x, initial_scene_translation_vec.y, initial_scene_translation_vec.z);
 	auto light_pointer = graph.add_node<gua::node::TransformNode>("/", "light_pointer");
 	auto light_source = graph.add_node<gua::node::LightNode>("/light_pointer", "light_source");
@@ -471,7 +485,6 @@ int main(int argc, char** argv) {
                 snail_material,
                 gua::TriMeshLoader::NORMALIZE_POSITION |
                 gua::TriMeshLoader::NORMALIZE_SCALE )); 
-  //ring_geometry->scale(sphere_radius/0.2);
 
   auto sphere(trimesh_loader.create_geometry_from_file(
                 "icosphere", "data/objects/icosphere.obj", 
@@ -584,19 +597,28 @@ int main(int argc, char** argv) {
       return 0;
     }
   ///////////////////////////////////////////////////
+  auto initial_scene_translation_mat = gua::math::mat4(scm::math::make_translation(screen_center_offset_x, 
+                                                                                  screen_center_offset_y, 
+                                                                                  screen_center_offset_z));
+  auto initial_scene_rotation_mat = gua::math::mat4(scm::math::make_rotation(-45.0, 1.0, 0.0, 0.0)); 
+  auto initial_scene_scaling_mat = gua::math::mat4(scm::math::make_scale(1.0, 1.0, 1.0));
+  auto initial_scene_transform_mat = initial_scene_translation_mat*initial_scene_rotation_mat*initial_scene_scaling_mat;
+  
+  graph[scenegraph_path]->set_transform(initial_scene_transform_mat);
 
-   //add pipeline with rendering passes
+
+  //TODO: clean up the code from unused RayNode
+  //ray_test
+  auto ray_node = graph.add_node<gua::node::RayNode>("/", "ray_node");
+  //TMP -- user geometry to signal the center of the tracking target
+  //sphere->scale(0.0005);
+  graph.add_node(ray_node, sphere);
+  graph.add_node(ray_node, ring_geometry);
+
+  //add pipeline with rendering passes
   auto pipe = std::make_shared<gua::PipelineDescription>();
   rebuild_pipe(*pipe);
   camera->set_pipeline_description(pipe);
-
-  //ray_test
-  auto ray_node = graph.add_node<gua::node::RayNode>("/", "ray_node");
-
-  //TMP -- user geometry to signal the center of the tracking target
-  sphere->scale(0.0005);
-  graph.add_node(ray_node, sphere);
-  graph.add_node(ray_node, ring_geometry);
 
 	//add mouse interaction
 	gua::utils::Trackball trackball(0.1, 0.02, 0.02); 
@@ -656,6 +678,7 @@ int main(int argc, char** argv) {
       scm::inp::tracker::target_container targets;
       targets.insert(scm::inp::tracker::target_container::value_type(5, scm::inp::target(5)));
       targets.insert(scm::inp::tracker::target_container::value_type(22, scm::inp::target(22)));
+      targets.insert(scm::inp::tracker::target_container::value_type(17, scm::inp::target(17)));
 
       scm::inp::art_dtrack* dtrack(new scm::inp::art_dtrack(5000));
       if (!dtrack->initialize()) {
@@ -671,16 +694,16 @@ int main(int argc, char** argv) {
         camera_target[14] /= 1000.f;
         current_cam_tracking_matrix = camera_target;
 
-       if(!detach_scene_from_tracking_target || offset_adjustment_on_click){
+       //if(!detach_scene_from_tracking_target || offset_adjustment_on_click){
           auto scene_root_target = targets.find(22)->second.transform();
           scene_root_target[12] /= 1000.f; 
           scene_root_target[13] /= 1000.f;
           scene_root_target[14] /= 1000.f;
-          current_scene_tracking_matrix = scene_root_target;
-        }
+          current_probe_tracking_matrix = scene_root_target;
+        //}
 
         if(use_ray_pointer) {
-          auto ray_origin_target = targets.find(22)->second.transform();
+          auto ray_origin_target = targets.find(17)->second.transform();
           ray_origin_target[12] /= 1000.f; 
           ray_origin_target[13] /= 1000.f; 
           ray_origin_target[14] /= 1000.f;
@@ -691,6 +714,17 @@ int main(int argc, char** argv) {
 	#endif
 
   auto scene_transform_mat = gua::math::mat4::identity();
+  //auto scene_rotation_mat = gua::math::mat4::identity();
+  //auto scene_scaling_mat = gua::math::mat4::identity();
+  //auto scene_translation_mat = gua::math::mat4::identity();
+  //auto initial_scene_translation_mat_in_probe_coordinates = gua::math::mat4::identity(); 
+  //auto initial_scene_rotation_mat_in_probe_coordinates =  gua::math::mat4::identity();
+  //auto initial_scene_scaling_mat_in_probe_coordinates =  gua::math::mat4::identity();
+  auto initial_scene_transform_mat_in_probe_coordinates = gua::math::mat4::identity();
+  /*auto current_probe_translation_mat = scm::math::make_translation(current_probe_tracking_matrix[12], current_probe_tracking_matrix[13], current_probe_tracking_matrix[14]);
+  auto initial_scene_translation_mat_in_probe_coordinates = scm::math::inverse(current_probe_translation_mat)*initial_scene_translation_mat;
+  auto initial_scene_rotation_mat_in_probe_coordinates = scm::math::inverse(gua::math::get_rotation(current_probe_tracking_matrix))*initial_scene_rotation_mat;*/
+
 	//application loop //////////////////////////////
 	gua::events::MainLoop loop;
 	double tick_time = 1.0/500.0;
@@ -705,41 +739,48 @@ int main(int argc, char** argv) {
     	}
     	else {
         #if(USE_SIDE_BY_SIDE && TRACKING_ENABLED)
-          #if 1
+          #if 0
             camera->set_transform(current_cam_tracking_matrix);
           #endif 
 
-          auto current_scene_translation_vec = gua::math::get_translation(current_scene_tracking_matrix);
-          auto current_scene_postion = gua::math::get_translation(scene_transform->get_world_transform());
-
-         
-          //std::cout << "current_scene_postion " << current_scene_postion << "\n";
-          if(trackball.get_left_button_press_state()){
-            std::cout << "x_offset_scene_track_target " << x_offset_scene_track_target<< "\n";
+          if(!trackball.get_left_button_press_state()){ //no dragging; static scene and free moving rpobe 
             detach_scene_from_tracking_target = true;
-            offset_adjustment_on_click = true;
-            change_scene_probe_offset(current_scene_translation_vec, current_scene_postion);
-            //std::cout << "current_scene_postion " << current_scene_postion << "\n";
-
+            initial_scene_transform_mat_in_probe_coordinates = scm::math::inverse(current_probe_tracking_matrix)
+                                                               * graph[scenegraph_path]->get_world_transform(); //initial_scene_transform_mat;
           }
-          else{
-             offset_adjustment_on_click = false;
-             detach_scene_from_tracking_target = false;
-             //std::cout << "x_offset NC" << x_offset_scene_track_target<< "\n";
-             //std::cout << "current_scene_postion After!" << gua::math::get_translation(scene_transform->get_world_transform()) << "\n";
+          else{//dragging; express scene transformations in coordinatre system of the probe local coordinates 
+            scene_transform_mat = current_probe_tracking_matrix 
+                                  * initial_scene_transform_mat_in_probe_coordinates;
+            detach_scene_from_tracking_target = false;
+            initial_scene_transform_mat = scene_transform_mat;
           }
 
-          if(!detach_scene_from_tracking_target && !force_detach_on_key_press){
-            //auto current_scene_translation_vec = gua::math::get_translation(current_scene_tracking_matrix);
-            current_scene_translation_vec.x += x_offset_scene_track_target;
-            current_scene_translation_vec.y += y_offset_scene_track_target;
-            current_scene_translation_vec.z += z_offset_scene_track_target;
-            auto current_scene_rot_matrix = gua::math::get_rotation(current_scene_tracking_matrix);
-            scene_transform_mat = scm::math::make_translation(current_scene_translation_vec)
-                                  * current_scene_rot_matrix
-                                  * scm::math::make_scale(zoom_factor, zoom_factor, zoom_factor);
-            scene_transform->set_transform(scene_transform_mat);
+          if(reset_scene_position){
+            //gua::math::vec3 scale_vec = gua::math::vec3(gua::math::get_scale(scene_transform->get_world_transform()));
+            gua::math::vec3 scale_vec = gua::math::vec3(gua::math::get_scale(initial_scene_transform_mat));
+            //auto scene_unscaling_mat = scm::math::make_scale(1.0/scale_vec.x, 1.0/scale_vec.y, 1.0/scale_vec.z);
+            auto scene_translation_mat = gua::math::mat4(scm::math::make_translation(screen_center_offset_x, 
+                                                                                  screen_center_offset_y, 
+                                                                                  screen_center_offset_z));
+            auto scene_rotation_mat = gua::math::mat4(scm::math::make_rotation(-45.0, 1.0, 0.0, 0.0)); 
+            scene_transform_mat = scene_translation_mat
+                                  * scene_rotation_mat;
+                                  //* scene_unscaling_mat;
+            scene_transform->set_transform(scene_transform_mat); 
+            std::cout<< "zoom_factor" << zoom_factor << "\n";                     
+            zoom_factor = 1.0;
+            scale_scene(1.0, graph);
+            std::cout<< "scale_vec" << scale_vec << "\n";
+            reset_scene_position = false;
+          }
+
+          if(!detach_scene_from_tracking_target){
+            scene_transform->set_transform(scene_transform_mat); 
           }  
+
+          if(print_mat){
+            std::cout << "\n";
+          }
 
           if(use_ray_pointer){
             double scale_factor = test_sphere_radius*0.5;
@@ -747,13 +788,16 @@ int main(int argc, char** argv) {
             //auto intersection = ray_node->intersect(scene_transform->get_bounding_box()); //TODO take var initialization out of the application loop
             if(apply_test_demo){
               pipe->get_npr_test_pass()->sphere_location((gua::math::vec3f)gua::math::get_translation(current_pointer_tracking_matrix));
-              //std::cout << "Pointer position: " << (gua::math::vec3f)gua::math::get_translation(current_pointer_tracking_matrix) << "\n"; 
             }
           }
 
           for(auto& scene_node : scene_transform->get_children()){
             std::dynamic_pointer_cast<gua::node::PLodNode>(scene_node)->set_error_threshold(error_threshold);
           }
+          /*for(auto& scene_node : scene_rotation_node->get_children()){
+            std::dynamic_pointer_cast<gua::node::PLodNode>(scene_node)->set_error_threshold(error_threshold);
+          }*/
+          
 
         #endif
     		renderer.queue_draw({&graph});
