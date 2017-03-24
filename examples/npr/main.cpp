@@ -57,10 +57,9 @@
 bool print_mat = false; //tmp
 bool close_window = false;
 bool reset_scene_position = false;
-bool detach_scene_from_tracking_target = false;
-bool force_detach_on_key_press = false;
-bool offset_adjustment_on_click = false;
+bool manipulate_scene_geometry = true;
 bool use_ray_pointer = false;
+bool show_lense = true;
 std::vector<gua::math::BoundingBox<gua::math::vec3> > scene_bounding_boxes;
 auto zoom_factor = 1.0;
 float screen_width = 0.595f;
@@ -70,7 +69,10 @@ double x_offset_scene_track_target = 0.0;
 double y_offset_scene_track_target = 0.0;
 double z_offset_scene_track_target = 0.0;
 
+std::set<std::string> model_filenames;
+
 float error_threshold = 3.7f; //for point cloud models
+float radius_scale = 0.7f;  //for point cloud models
 
 std::string scenegraph_path = "/model_translation/model_rotation/model_scaling/geometry_root";
 
@@ -124,22 +126,8 @@ void mouse_button(gua::utils::Trackball& trackball,
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-void change_scene_probe_offset(scm::math::vec3d& target_translation_vector, scm::math::vec3d&  old_scene_position){
-  x_offset_scene_track_target = std::fabs(target_translation_vector.x - old_scene_position.x);
-  y_offset_scene_track_target = std::fabs(target_translation_vector.y - old_scene_position.y);
-  z_offset_scene_track_target = std::fabs(target_translation_vector.z - old_scene_position.z);
-
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void scale_scene (double zoom_factor, gua::SceneGraph& graph){
-  /*auto curent_scene_transform_mat = graph[scenegraph_path]->get_world_transform();
-  gua::math::vec3 current_scale_factor_vec = gua::math::vec3(gua::math::get_scale(curent_scene_transform_mat));
-  auto scale_correction_mat = scm::math::make_scale(1.0/current_scale_factor_vec.x, 1.0/current_scale_factor_vec.x, 1.0/current_scale_factor_vec.x);
-  auto scene_scaling_mat = scale_correction_mat*scm::math::make_scale(zoom_factor, zoom_factor, zoom_factor);
-  auto scene_transform_mat = curent_scene_transform_mat*scene_scaling_mat;*/
   auto scaling_mat = scm::math::make_scale(zoom_factor, zoom_factor, zoom_factor);
-
   graph["/model_translation/model_rotation/model_scaling"]->set_transform(scaling_mat);
 }
 
@@ -150,7 +138,7 @@ void build_pipe (gua::PipelineDescription& pipe){
   pipe.add_pass(std::make_shared<gua::PLodPassDescription>());
   pipe.add_pass(std::make_shared<gua::LightVisibilityPassDescription>());
   pipe.add_pass(std::make_shared<gua::ResolvePassDescription>()); 
-  pipe.add_pass(std::make_shared<gua::BBoxPassDescription>());
+ // pipe.add_pass(std::make_shared<gua::BBoxPassDescription>());
  // pipe.add_pass(std::make_shared<gua::DebugViewPassDescription>());
 }
 
@@ -196,8 +184,8 @@ void rebuild_pipe(gua::PipelineDescription& pipe) {
       pipe.add_pass(std::make_shared<gua::NprBlendingPassDescription>());
     }
   }
-  pipe.add_pass(std::make_shared<gua::BBoxPassDescription>());
-  pipe.add_pass(std::make_shared<gua::DebugViewPassDescription>());
+  //pipe.add_pass(std::make_shared<gua::BBoxPassDescription>());
+  //pipe.add_pass(std::make_shared<gua::DebugViewPassDescription>());
   //pipe.add_pass(std::make_shared<gua::SSAAPassDescription>());
 }
 
@@ -233,10 +221,12 @@ void key_press(gua::PipelineDescription& pipe,
     rebuild_pipe(pipe);
   }
 
-  //toogle scene position tracking
+  //toogle what geometry is manipulated by the tracked cubic probe
+  //switches between scene geometry and lense representation
   if(65 == scancode && action == 1){ //'Spacebar'
-      force_detach_on_key_press = !force_detach_on_key_press;
+    manipulate_scene_geometry = !manipulate_scene_geometry;
   }
+
   //toogle pointer position tracking
   if(108 == scancode && action == 1){ //'right Alt'
       use_ray_pointer = !use_ray_pointer;
@@ -255,6 +245,18 @@ void key_press(gua::PipelineDescription& pipe,
       scale_scene(zoom_factor, graph);
       break;
 
+     case 'u':
+        if(radius_scale <= 20.0){
+          radius_scale += 0.2;
+        }
+      break;
+
+    case 'j':
+        if(radius_scale >= 0.3){
+          radius_scale -= 0.2;
+        }
+      break;
+
     case 'z':
         if(error_threshold <= 400.0){
           error_threshold += 2.0;
@@ -268,7 +270,8 @@ void key_press(gua::PipelineDescription& pipe,
       break;
 
     case 'p':
-      print_mat = !print_mat;
+      //print_mat = !print_mat;
+      show_lense =! show_lense;
       break;
 
     //Npr-related options: 
@@ -290,7 +293,7 @@ void key_press(gua::PipelineDescription& pipe,
         rebuild_pipe(pipe);
       break; 
 
-    //bilateral filter - screenspace passcreate_screenspace_outlines =
+    //bilateral filter - screenspace pass
     case 'b':
         apply_bilateral_filter = !apply_bilateral_filter;
         rebuild_pipe(pipe);
@@ -403,6 +406,9 @@ void add_models_to_graph(std::vector<std::string> const& model_files,
     graph.add_node(scenegraph_path, plod_node); 
     scene_bounding_boxes.push_back(plod_node->get_bounding_box()); 
     plod_node->set_draw_bounding_box(true);
+
+    //TMP
+    model_filenames.insert(model);
   }
    //std::dynamic_pointer_cast<gua::node::PLodNode>(node)->get_material()->set_uniform("ColorMap", std::string("data/textures/colored_grid.png"));
     graph[scenegraph_path]->update_bounding_box();
@@ -413,7 +419,7 @@ void add_models_to_graph(std::vector<std::string> const& model_files,
     std::cout << size_along_x <<" x " << size_along_y <<" y " << size_along_z <<" z " << "SF\n";
     auto longest_axis = std::max(std::max(size_along_x, size_along_y), std::max(size_along_y, size_along_z));
     
-    float scaling_factor = screen_width / (longest_axis*4.0);
+    float scaling_factor = screen_width / (longest_axis);
    // std::cout << scaling_factor << "SF\n";
     auto all_geometry_nodes = graph[scenegraph_path]->get_children();
     for(auto& node : all_geometry_nodes){
@@ -440,11 +446,21 @@ int main(int argc, char** argv) {
   auto model_scaling_node = graph.add_node<gua::node::TransformNode>("/model_translation/model_rotation", "model_scaling");
 	auto geometry_root = graph.add_node<gua::node::TransformNode>("/model_translation/model_rotation/model_scaling", "geometry_root");
 
-
+  //light source 
 	auto light_pointer = graph.add_node<gua::node::TransformNode>("/", "light_pointer");
 	auto light_source = graph.add_node<gua::node::LightNode>("/light_pointer", "light_source");
 	light_source->data.set_type(gua::node::LightNode::Type::SUN);
 	light_source->data.brightness = 3.0f;
+
+  //lense geometry
+  auto lense_translation_node = graph.add_node<gua::node::TransformNode>("/", "lense_translation");
+  auto lense_rotation_node = graph.add_node<gua::node::TransformNode>("/lense_translation", "lense_rotation");
+  auto lense_scaling_node = graph.add_node<gua::node::TransformNode>("/lense_translation/lense_rotation", "lense_scaling");
+  auto lense_geometry_root = graph.add_node<gua::node::TransformNode>("/lense_translation/lense_rotation/lense_scaling", "lense_geometry_root");
+
+  //ray
+  auto ray_translation_node = graph.add_node<gua::node::TransformNode>("/", "ray_translation");
+  auto ray_rotation_node = graph.add_node<gua::node::TransformNode>("/ray_translation", "ray_rotation");
 
 
   auto snail_material(gua::MaterialShaderDatabase::instance()
@@ -461,7 +477,7 @@ int main(int argc, char** argv) {
 
   gua::TriMeshLoader   trimesh_loader;
   auto ring_geometry(trimesh_loader.create_geometry_from_file(
-                "icosphere", "data/objects/dashed_ring_1b025.obj", 
+                "ring", "data/objects/wireframe_sphere.obj", //"data/objects/dashed_ring_1b025.obj", 
                 snail_material,
                 gua::TriMeshLoader::NORMALIZE_POSITION |
                 gua::TriMeshLoader::NORMALIZE_SCALE )); 
@@ -471,6 +487,11 @@ int main(int argc, char** argv) {
                 gua::TriMeshLoader::NORMALIZE_POSITION |
                 gua::TriMeshLoader::NORMALIZE_SCALE |
                 gua::TriMeshLoader::LOAD_MATERIALS));
+
+  auto ray_geometry(trimesh_loader.create_geometry_from_file(
+                      "ray", "data/objects/ray_cylinder.obj",
+                      gua::TriMeshLoader::NORMALIZE_SCALE |
+                      gua::TriMeshLoader::LOAD_MATERIALS));
 
 	//define screen resolution
 	gua::math::vec2ui resolution;
@@ -534,6 +555,7 @@ int main(int argc, char** argv) {
   camera->config.set_near_clip(0.02);
   camera->config.set_far_clip(3000.0);
   camera->config.set_eye_dist(eye_dist);
+  camera->config.mask().blacklist.add_tag("invisible");
 
   //////////////////input handling addapted from Lamure /////////////
   namespace po = boost::program_options;
@@ -564,7 +586,7 @@ int main(int argc, char** argv) {
       //single scene decription file is provided
       if (vm.count("input")){
         auto model_atributes = interpret_config_file(vm["input"].as<std::string>());
-        add_models_to_graph(model_atributes.first, graph, model_atributes.second);
+        add_models_to_graph(model_atributes.first, graph, model_atributes.second);  
       } else if (vm.count("models")){
         add_models_to_graph(vm["models"].as<std::vector<std::string>>(), graph, dummy_transformations);  
       } else {
@@ -587,13 +609,17 @@ int main(int argc, char** argv) {
   model_rotation_node->set_transform(initial_scene_rotation_mat);
   model_scaling_node->set_transform(initial_scene_scaling_mat);
 
-  //TODO: clean up the code from unused RayNode
-  //ray_test
-  auto ray_node = graph.add_node<gua::node::RayNode>("/", "ray_node");
-  //TMP -- user geometry to signal the center of the tracking target
-  //sphere->scale(0.0005);
-  graph.add_node(ray_node, sphere);
-  graph.add_node(ray_node, ring_geometry);
+  lense_translation_node->set_transform(initial_scene_translation_mat);
+  lense_rotation_node->set_transform(initial_scene_rotation_mat);
+  //lense_scaling_node->set_transform(initial_scene_scaling_mat);
+
+  ray_translation_node->set_transform(initial_scene_translation_mat);
+  ray_rotation_node->set_transform(initial_scene_rotation_mat);
+
+  //graph.add_node(lense_geometry_root, sphere);
+  graph.add_node(lense_geometry_root, ring_geometry);
+
+  graph.add_node(ray_rotation_node, ray_geometry);
 
   //add pipeline with rendering passes
   auto pipe = std::make_shared<gua::PipelineDescription>();
@@ -652,21 +678,20 @@ int main(int argc, char** argv) {
 	//tracking //////////////////////////////////////
 	#if TRACKING_ENABLED
 	  gua::math::mat4 current_cam_tracking_matrix(gua::math::mat4::identity());
-    gua::math::mat4 current_pointer_tracking_matrix(gua::math::mat4::identity());
+    gua::math::mat4 current_ray_tracking_matrix(gua::math::mat4::identity());
 
 	  std::thread tracking_thread([&]() {
       scm::inp::tracker::target_container targets;
       targets.insert(scm::inp::tracker::target_container::value_type(5, scm::inp::target(5)));
       targets.insert(scm::inp::tracker::target_container::value_type(22, scm::inp::target(22)));
-      //targets.insert(scm::inp::tracker::target_container::value_type(17, scm::inp::target(17)));
+      targets.insert(scm::inp::tracker::target_container::value_type(17, scm::inp::target(17)));
 
       scm::inp::art_dtrack* dtrack(new scm::inp::art_dtrack(5000));
       if (!dtrack->initialize()) {
         std::cerr << std::endl << "Tracking System Fault" << std::endl;
         return;
       }
-      while (true) {
-       
+      while (true) {       
         dtrack->update(targets);
         auto camera_target = targets.find(5)->second.transform();
         camera_target[12] /= 1000.f; 
@@ -674,20 +699,18 @@ int main(int argc, char** argv) {
         camera_target[14] /= 1000.f;
         current_cam_tracking_matrix = camera_target;
 
-       //if(!detach_scene_from_tracking_target || offset_adjustment_on_click){
-          auto scene_root_target = targets.find(22)->second.transform();
-          scene_root_target[12] /= 1000.f; 
-          scene_root_target[13] /= 1000.f;
-          scene_root_target[14] /= 1000.f;
-          current_probe_tracking_matrix = scene_root_target;
-        //}
+        auto scene_root_target = targets.find(22)->second.transform();
+        scene_root_target[12] /= 1000.f; 
+        scene_root_target[13] /= 1000.f;
+        scene_root_target[14] /= 1000.f;
+        current_probe_tracking_matrix = scene_root_target;
 
         if(use_ray_pointer) {
-          auto ray_origin_target = targets.find(22)->second.transform();
+          auto ray_origin_target = targets.find(17)->second.transform();
           ray_origin_target[12] /= 1000.f; 
           ray_origin_target[13] /= 1000.f; 
           ray_origin_target[14] /= 1000.f;
-          current_pointer_tracking_matrix = ray_origin_target;
+          current_ray_tracking_matrix = ray_origin_target;
         }
       }
     });
@@ -695,7 +718,8 @@ int main(int argc, char** argv) {
 
   auto initial_translation_in_tracking_space_coordinates = gua::math::mat4::identity();
   auto initial_rotation_in_tracking_space_coordinates = gua::math::mat4::identity();
-
+  auto ray_forward = gua::math::vec3(1.0f, 0.0f, 0.0f); 
+  gua::LodLoader lod_loader;
 	//application loop //////////////////////////////
 	gua::events::MainLoop loop;
 	double tick_time = 1.0/500.0;
@@ -710,52 +734,101 @@ int main(int argc, char** argv) {
     	}
     	else {
         #if(USE_SIDE_BY_SIDE && TRACKING_ENABLED)
-          #if 0
+          #if 1
             camera->set_transform(current_cam_tracking_matrix);
           #endif 
 
           auto current_probe_rotation_mat = gua::math::get_rotation(current_probe_tracking_matrix);
           auto current_probe_translation_mat = scm::math::make_translation(current_probe_tracking_matrix[12], current_probe_tracking_matrix[13], current_probe_tracking_matrix[14]);
-          if(!trackball.get_left_button_press_state()){            
-            initial_rotation_in_tracking_space_coordinates = scm::math::inverse(current_probe_rotation_mat)*(model_rotation_node->get_transform());  
-            initial_translation_in_tracking_space_coordinates = scm::math::inverse(current_probe_translation_mat)*(model_translation_node->get_transform());
+          auto ray_translation_mat = scm::math::make_translation(current_ray_tracking_matrix[12], 
+                                                                   current_ray_tracking_matrix[13], 
+                                                                   current_ray_tracking_matrix[14]);
+          auto ray_rotation_mat = gua::math::get_rotation(current_ray_tracking_matrix);
+          if(!trackball.get_left_button_press_state()){   
+            if(manipulate_scene_geometry)  {
+              initial_rotation_in_tracking_space_coordinates = scm::math::inverse(current_probe_rotation_mat)*(model_rotation_node->get_transform());  
+              initial_translation_in_tracking_space_coordinates = scm::math::inverse(current_probe_translation_mat)*(model_translation_node->get_transform());
+           }
+           else{
+              initial_rotation_in_tracking_space_coordinates = scm::math::inverse(current_probe_rotation_mat)*(lense_rotation_node->get_transform());  
+              initial_translation_in_tracking_space_coordinates = scm::math::inverse(current_probe_translation_mat)*(lense_translation_node->get_transform());
+           }       
+
           }
           else{
             auto rotation_mat = current_probe_rotation_mat*initial_rotation_in_tracking_space_coordinates;
             auto translation_mat = current_probe_translation_mat*initial_translation_in_tracking_space_coordinates;
-            model_translation_node->set_transform(translation_mat);
-            model_rotation_node->set_transform(rotation_mat);
+            if(manipulate_scene_geometry){
+              model_translation_node->set_transform(translation_mat);
+              model_rotation_node->set_transform(rotation_mat); 
+            }
+            else if(!use_ray_pointer){
+              lense_translation_node->set_transform(translation_mat);
+              lense_rotation_node->set_transform(rotation_mat);
+            }
           }
 
           if(reset_scene_position){
-            model_translation_node->set_transform(initial_scene_translation_mat);
-            model_rotation_node->set_transform(initial_scene_rotation_mat);
-            scale_scene(1.0, graph);
-            zoom_factor = 1.0;
+            if(manipulate_scene_geometry){
+              model_translation_node->set_transform(initial_scene_translation_mat);
+              model_rotation_node->set_transform(initial_scene_rotation_mat);
+              scale_scene(1.0, graph);
+              zoom_factor = 1.0;
+            }
+            else{
+              lense_translation_node->set_transform(initial_scene_translation_mat);
+              lense_rotation_node->set_transform(initial_scene_rotation_mat);
+            }
             reset_scene_position = false;
           } 
 
-          if(print_mat){
-            std::cout << "\n";
-          }
-
-          if(use_ray_pointer){
-            double scale_factor = test_sphere_radius*0.5;
-            ray_node->set_transform(current_pointer_tracking_matrix*scm::math::make_scale(scale_factor, scale_factor, scale_factor));
-            //auto intersection = ray_node->intersect(scene_transform->get_bounding_box()); //TODO take var initialization out of the application loop
+          if(!use_ray_pointer){
+            double scale_factor = test_sphere_radius*0.75;
+            lense_scaling_node->set_transform(scm::math::make_scale(scale_factor, scale_factor, scale_factor));
             if(apply_test_demo){
-              pipe->get_npr_test_pass()->sphere_location((gua::math::vec3f)gua::math::get_translation(current_pointer_tracking_matrix));
+              gua::math::vec3d translation_vec = gua::math::get_translation(lense_translation_node->get_transform());
+              pipe->get_npr_test_pass()->sphere_location((gua::math::vec3f)translation_vec);
+            }
+          }
+          else{
+            ray_translation_node->set_transform(ray_translation_mat);
+            ray_rotation_node->set_transform(ray_rotation_mat);
+            auto intersection = lod_loader.pick_lod_bvh(ray_geometry->get_world_position(),
+                                                        ray_forward,
+                                                        3000.0f,
+                                                        model_filenames,
+                                                        1.0f);
+            //std::cout << ray_translation_node->get_world_transform();
+            std::cout << intersection.first << "\n\n";
+            if(apply_test_demo){
+              pipe->get_npr_test_pass()->sphere_location((gua::math::vec3f)intersection.second);
             }
           }
 
           for(auto& geometry_node : geometry_root->get_children()){
             std::dynamic_pointer_cast<gua::node::PLodNode>(geometry_node)->set_error_threshold(error_threshold);
+            std::dynamic_pointer_cast<gua::node::PLodNode>(geometry_node)->set_radius_scale(radius_scale);
           }
           /*for(auto& scene_node : scene_rotation_node->get_children()){
             std::dynamic_pointer_cast<gua::node::PLodNode>(scene_node)->set_error_threshold(error_threshold);
           }*/
-          
+          if(use_ray_pointer==false){
+            graph["/ray_translation/ray_rotation"]->get_tags().add_tag("invisible");
+          }
+          else{
+            graph["/ray_translation/ray_rotation"]->get_tags().remove_tag("invisible");
+          }
 
+          if(show_lense==false){
+            graph["/lense_translation/lense_rotation/lense_scaling/lense_geometry_root"]->get_tags().add_tag("invisible");
+          }
+          else{
+            graph["/lense_translation/lense_rotation/lense_scaling/lense_geometry_root"]->get_tags().remove_tag("invisible");
+          }
+
+          if(print_mat){
+            std::cout << "\n";
+          }
         #endif
     		renderer.queue_draw({&graph});
     	}
