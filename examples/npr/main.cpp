@@ -59,7 +59,7 @@ bool close_window = false;
 bool reset_scene_position = false;
 bool manipulate_scene_geometry = true;
 bool use_ray_pointer = false;
-bool show_lense = true;
+bool show_lense = false;
 std::vector<gua::math::BoundingBox<gua::math::vec3> > scene_bounding_boxes;
 auto zoom_factor = 1.0;
 float screen_width = 0.595f;
@@ -83,7 +83,7 @@ bool apply_bilateral_filter = false;
 bool create_screenspace_outlines = false;
 bool no_color = false; 
 auto surfel_render_mode = gua::PLodPassDescription::SurfelRenderMode::HQ_TWO_PASS;
-std::string textrue_file_path = "data/textures/dark_red.png";
+std::string textrue_file_path = "data/textures/PB2.png";
 //---test use-case demo
 bool apply_blending = false;
 float test_sphere_radius = 0.1f;
@@ -258,8 +258,8 @@ void key_press(gua::PipelineDescription& pipe,
       break;
 
     case 'z':
-        if(error_threshold <= 400.0){
-          error_threshold += 2.0;
+        if(error_threshold <= 20.0){
+          error_threshold += 1.0;
         }
       break;
 
@@ -347,7 +347,23 @@ void key_press(gua::PipelineDescription& pipe,
         apply_bilateral_filter = false; 
         apply_halftoning_effect = false;
         rebuild_pipe(pipe);
-      break;  
+      break; 
+
+    case '7':
+        textrue_file_path = "data/textures/black_stroke.png";
+      break;
+
+    case '8':
+        textrue_file_path = "data/textures/dark_red.png";
+      break;
+
+     case '9':
+        textrue_file_path = "data/textures/stripes.png";
+      break;
+
+     case '0':
+        textrue_file_path = "data/textures/important_texture.jpg";
+      break;
     
     default:
       break;
@@ -355,7 +371,8 @@ void key_press(gua::PipelineDescription& pipe,
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-std::pair<std::vector<std::string>, std::vector<scm::math::mat4f>> interpret_config_file(std::string const&  path_to_file) {
+std::pair<std::vector<std::string>, std::vector<scm::math::mat4f>>
+interpret_config_file(std::string const&  path_to_file) {
   namespace fs = boost::filesystem;
   std::vector<scm::math::mat4f> model_transformations;
   std::vector<std::string> model_filenames;
@@ -380,29 +397,10 @@ void add_models_to_graph(std::vector<std::string> const& model_files,
                          gua::SceneGraph& graph,
                          std::vector<scm::math::mat4f> const& model_transformations){
   gua::LodLoader lod_loader;
-  /*auto colorful_material(gua::MaterialShaderDatabase::instance()
-                          ->lookup("gua_default_material")
-                          ->make_new_material());
-  colorful_material->set_uniform("ColorMap", textrue_file_path);*/
 
-       //tmp texture for point cloud npr test
-    gua::TextureDatabase::instance()->load(textrue_file_path);
-    auto tex = gua::TextureDatabase::instance()->lookup(textrue_file_path);
-
-  //int model_counter = 0;
   for (auto& model : model_files) {
 
-    //auto plod_node = lod_loader.load_lod_pointcloud("plod_node_" + std::to_string(model_counter), model, colorful_material);
     auto plod_node = lod_loader.load_lod_pointcloud(model);
-    plod_node->set_texture(tex);
-    //model_counter += 1;
-    //plod_node->get_material()->set_uniform("ColorMap", std::string("data/textures/colored_grid.png"));
-     // auto lod_keep_input_desc = std::make_shared<gua::MaterialShaderDescription>("./data/materials/PLOD_use_input_color.gmd");
-  //auto lod_keep_color_shader(std::make_shared<gua::MaterialShader>("PLOD_pass_input_color", lod_keep_input_desc));
-  //gua::MaterialShaderDatabase::instance()->add(lod_keep_color_shader);
- //   auto plod_material = plod_node->get_material();
-  //  plod_material->set_uniform("ColorMap", std::string("data/textures/colored_grid.png"));
-  //  plod_node->set_material(plod_material);
     graph.add_node(scenegraph_path, plod_node); 
     scene_bounding_boxes.push_back(plod_node->get_bounding_box()); 
     plod_node->set_draw_bounding_box(true);
@@ -410,7 +408,7 @@ void add_models_to_graph(std::vector<std::string> const& model_files,
     //TMP
     model_filenames.insert(model);
   }
-   //std::dynamic_pointer_cast<gua::node::PLodNode>(node)->get_material()->set_uniform("ColorMap", std::string("data/textures/colored_grid.png"));
+   
     graph[scenegraph_path]->update_bounding_box();
     auto scene_bbox = graph[scenegraph_path]->get_bounding_box();
     auto size_along_x = scene_bbox.size(0);
@@ -420,7 +418,6 @@ void add_models_to_graph(std::vector<std::string> const& model_files,
     auto longest_axis = std::max(std::max(size_along_x, size_along_y), std::max(size_along_y, size_along_z));
     
     float scaling_factor = screen_width / (longest_axis);
-   // std::cout << scaling_factor << "SF\n";
     auto all_geometry_nodes = graph[scenegraph_path]->get_children();
     for(auto& node : all_geometry_nodes){
       node->translate(-scene_bbox.center().x, -scene_bbox.center().y, -scene_bbox.center().z);
@@ -459,9 +456,10 @@ int main(int argc, char** argv) {
   auto lense_geometry_root = graph.add_node<gua::node::TransformNode>("/lense_translation/lense_rotation/lense_scaling", "lense_geometry_root");
 
   //ray
-  auto ray_translation_node = graph.add_node<gua::node::TransformNode>("/", "ray_translation");
-  auto ray_rotation_node = graph.add_node<gua::node::TransformNode>("/ray_translation", "ray_rotation");
-
+  auto ray_offset = graph.add_node<gua::node::TransformNode>("/", "ray_local_offset");
+  auto ray_translation_node = graph.add_node<gua::node::TransformNode>("/ray_local_offset", "ray_translation");
+  auto ray_rotation_node = graph.add_node<gua::node::TransformNode>("/ray_local_offset/ray_translation", "ray_rotation");
+  
 
   auto snail_material(gua::MaterialShaderDatabase::instance()
                       ->lookup("gua_default_material")
@@ -471,13 +469,13 @@ int main(int argc, char** argv) {
    snail_material->set_uniform("Metalness", 0.0f);
 
   std::string directory("data/textures/");
-  snail_material->set_uniform("ColorMap", directory + "blue_marks.png");
+  snail_material->set_uniform("ColorMap", directory + "dark_red.png");
   snail_material->set_uniform("Emissivity", 1.0f);
-  snail_material->set_show_back_faces(true);
+  //snail_material->set_show_back_faces(false);
 
   gua::TriMeshLoader   trimesh_loader;
   auto ring_geometry(trimesh_loader.create_geometry_from_file(
-                "ring", "data/objects/wireframe_sphere.obj", //"data/objects/dashed_ring_1b025.obj", 
+                "ring", "data/objects/wired_icosphere.obj", //"data/objects/dashed_ring_1b025.obj", 
                 snail_material,
                 gua::TriMeshLoader::NORMALIZE_POSITION |
                 gua::TriMeshLoader::NORMALIZE_SCALE )); 
@@ -615,6 +613,7 @@ int main(int argc, char** argv) {
 
   ray_translation_node->set_transform(initial_scene_translation_mat);
   ray_rotation_node->set_transform(initial_scene_rotation_mat);
+  ray_offset->set_transform(scm::math::make_translation(0.2, 0.0, 0.0));
 
   //graph.add_node(lense_geometry_root, sphere);
   graph.add_node(lense_geometry_root, ring_geometry);
@@ -705,16 +704,22 @@ int main(int argc, char** argv) {
         scene_root_target[14] /= 1000.f;
         current_probe_tracking_matrix = scene_root_target;
 
-        if(use_ray_pointer) {
-          auto ray_origin_target = targets.find(17)->second.transform();
-          ray_origin_target[12] /= 1000.f; 
-          ray_origin_target[13] /= 1000.f; 
-          ray_origin_target[14] /= 1000.f;
-          current_ray_tracking_matrix = ray_origin_target;
-        }
+        auto ray_origin_target = targets.find(17)->second.transform();
+        ray_origin_target[12] /= 1000.f; 
+        ray_origin_target[13] /= 1000.f; 
+        ray_origin_target[14] /= 1000.f;
+        current_ray_tracking_matrix = ray_origin_target;
       }
     });
 	#endif
+
+  //tmp
+  //loading texutes 
+  gua::TextureDatabase::instance()->load(textrue_file_path);
+  gua::TextureDatabase::instance()->load("data/textures/black_stroke.png");
+  gua::TextureDatabase::instance()->load("data/textures/dark_red.png");
+  gua::TextureDatabase::instance()->load("data/textures/stripes.png");
+  gua::TextureDatabase::instance()->load("data/textures/important_texture.jpg");
 
   auto initial_translation_in_tracking_space_coordinates = gua::math::mat4::identity();
   auto initial_rotation_in_tracking_space_coordinates = gua::math::mat4::identity();
@@ -734,7 +739,7 @@ int main(int argc, char** argv) {
     	}
     	else {
         #if(USE_SIDE_BY_SIDE && TRACKING_ENABLED)
-          #if 1
+          #if 0
             camera->set_transform(current_cam_tracking_matrix);
           #endif 
 
@@ -793,30 +798,31 @@ int main(int argc, char** argv) {
           else{
             ray_translation_node->set_transform(ray_translation_mat);
             ray_rotation_node->set_transform(ray_rotation_mat);
+            gua::math::vec3 current_ray_forward = gua::math::vec3(ray_rotation_mat*gua::math::vec4(ray_forward));
             auto intersection = lod_loader.pick_lod_bvh(ray_geometry->get_world_position(),
-                                                        ray_forward,
-                                                        3000.0f,
+                                                        current_ray_forward,
+                                                        3.0f,
                                                         model_filenames,
                                                         1.0f);
-            //std::cout << ray_translation_node->get_world_transform();
-            std::cout << intersection.first << "\n\n";
             if(apply_test_demo){
               pipe->get_npr_test_pass()->sphere_location((gua::math::vec3f)intersection.second);
             }
           }
 
+          auto tex = gua::TextureDatabase::instance()->lookup(textrue_file_path);
+
           for(auto& geometry_node : geometry_root->get_children()){
             std::dynamic_pointer_cast<gua::node::PLodNode>(geometry_node)->set_error_threshold(error_threshold);
             std::dynamic_pointer_cast<gua::node::PLodNode>(geometry_node)->set_radius_scale(radius_scale);
+            std::cout << radius_scale << "\n";
+            std::dynamic_pointer_cast<gua::node::PLodNode>(geometry_node)->set_texture(tex);
           }
-          /*for(auto& scene_node : scene_rotation_node->get_children()){
-            std::dynamic_pointer_cast<gua::node::PLodNode>(scene_node)->set_error_threshold(error_threshold);
-          }*/
+
           if(use_ray_pointer==false){
-            graph["/ray_translation/ray_rotation"]->get_tags().add_tag("invisible");
+            graph["/ray_local_offset"]->get_tags().add_tag("invisible");
           }
           else{
-            graph["/ray_translation/ray_rotation"]->get_tags().remove_tag("invisible");
+            graph["/ray_local_offset"]->get_tags().remove_tag("invisible");
           }
 
           if(show_lense==false){
