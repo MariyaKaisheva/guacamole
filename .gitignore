@@ -1,8 +1,11 @@
 # Folders
 cmake_out/
+examples/npr/data
 
 # Compiled Object files
 *.slo
+*.txt
+*~
 *.lo
 *.o
 
