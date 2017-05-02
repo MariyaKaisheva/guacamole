@@ -61,4 +61,11 @@ namespace gua {
     PipelinePass pass{*this, ctx, substitution_map};
     return pass;
   }
+
+  ////////////////////////////////////////////////////////////////////////////////
+  NprBlendingPassDescription& NprBlendingPassDescription::focus_appearance(bool value)
+  {
+  uniforms["npr_focus"] = value;
+  return *this;
+  }
 }

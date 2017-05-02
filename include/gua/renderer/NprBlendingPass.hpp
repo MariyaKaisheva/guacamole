@@ -36,6 +36,8 @@ class GUA_DLL NprBlendingPassDescription : public PipelinePassDescription {
   NprBlendingPassDescription();
 
   std::shared_ptr<PipelinePassDescription> make_copy() const override;
+  NprBlendingPassDescription& focus_appearance(bool value);
+
   //TODO pass blending weight tecture as a uniform
   friend class Pipeline;
 
