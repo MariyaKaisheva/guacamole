@@ -41,7 +41,7 @@ namespace gua {
     vertex_shader_ = "shaders/common/fullscreen_quad.vert";
     fragment_shader_ = "shaders/npr_outline_halftoning.frag";
     needs_color_buffer_as_input_ = true;
-    writes_only_color_buffer_ = true;
+    writes_only_color_buffer_ = false;
     rendermode_ = RenderMode::Quad;
     name_ = "NprOutlinePassDescription";
     depth_stencil_state_ = boost::make_optional(scm::gl::depth_stencil_state_desc(false, false));

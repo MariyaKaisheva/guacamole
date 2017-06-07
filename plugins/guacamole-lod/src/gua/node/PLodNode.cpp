@@ -116,7 +116,7 @@ std::shared_ptr<Texture> const& PLodNode::get_texture() const {
 ////////////////////////////////////////////////////////////////////////////////
 void PLodNode::set_texture(std::shared_ptr<Texture> const& texture) {
   texture_ = texture;
- // texture_changed_ = self_dirty_ = true;
+  //texture_changed_ = self_dirty_ = true;
 }
 
 ////////////////////////////////////////////////////////////////////////////////

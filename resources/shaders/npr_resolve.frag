@@ -130,14 +130,15 @@ void main() {
         } 
         else{
            //outline color
-          gua_out_color = vec3(0.1, 0.1, 0.1);
+          gua_out_color = vec3(0.02, 0.01, 0.01);
         // gua_out_color = T.diffuse;
         }
 
       }     
   }
   else {
-    gua_out_color = vec3(0.6, 0.6, 0.6);
+    gua_out_color = vec3(0.83, 0.83, 0.83);
   }
+  
 }
 

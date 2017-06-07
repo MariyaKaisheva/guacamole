@@ -37,6 +37,7 @@
 #include <gua/renderer/NPREffectPass.hpp> 
 #include <gua/renderer/NprOutlinePass.hpp>  
 #include <gua/renderer/NprTestPass.hpp>
+#include <gua/renderer/NprBlendingPass.hpp>
 
 namespace gua {
 
@@ -171,6 +172,12 @@ std::shared_ptr<NprOutlinePassDescription> const PipelineDescription::get_npr_ou
 
 std::shared_ptr<NprTestPassDescription> const PipelineDescription::get_npr_test_pass()const {
   return get_pass_by_type<NprTestPassDescription>();
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+std::shared_ptr<NprBlendingPassDescription> const PipelineDescription::get_npr_screen_blending_pass()const {
+  return get_pass_by_type<NprBlendingPassDescription>();
 }
 
 ////////////////////////////////////////////////////////////////////////////////

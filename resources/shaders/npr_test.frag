@@ -7,9 +7,6 @@ in vec2 gua_quad_coords;
 @include "common/gua_gbuffer_input.glsl"
 
 uniform float sphere_radius;
-//uniform float sphere_location_x;
-//uniform float sphere_location_y;
-//uniform float sphere_location_z;
 uniform vec3 sphere_location;
 
 
@@ -33,7 +30,9 @@ void main() {
     out_weight = vec3(1.0, 1.0, 1.0);
   } 
   gua_out_color = gua_get_color();
-  //gua_out_normal = gua_get_normal();
-  gua_out_pbr = clamp(out_weight, 0.0, 1.0); 
+  gua_out_normal = gua_get_normal();
+ // gua_out_pbr = clamp(out_weight, 0.0, 1.0); 
+
+  //http://stackoverflow.com/questions/5731863/mapping-a-numeric-range-onto-another
   gua_out_pbr = vec3(1.0/sphere_radius)*(min(distance(sphere_location, position), sphere_radius));
 }

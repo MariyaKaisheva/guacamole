@@ -13,6 +13,7 @@ in VertexData {
   vec3 pass_normal;
   vec3 pass_world_position;
   vec3 pass_color;
+  float pass_radius;
 } VertexIn;
 
 @include "common/gua_fragment_shader_input.glsl"
@@ -55,19 +56,37 @@ void main()
 
   vec2 normalized_tex_coords = (uv_coords + 1.0) / 2.0;
 
-  vec4 looked_up_color = texture2D(sampler2D(gua_in_texture), normalized_tex_coords );
+  vec4 looked_up_color = texture2D(sampler2D(gua_in_texture), normalized_tex_coords);
   
   //squirel shape
-  if( looked_up_color.g > looked_up_color.r && looked_up_color.g > looked_up_color.b 
+  /*if( looked_up_color.g > looked_up_color.r && looked_up_color.g > looked_up_color.b 
       && looked_up_color.g - looked_up_color.r >= 20.0/255.0 && looked_up_color.g - looked_up_color.b >= 20.0/255.0)  {
-    discard;
-  }
-
-  /*if(texture2D(sampler2D(gua_in_texture), normalized_tex_coords ).a < 0.5){
     discard;
   }*/
 
-  gua_color = vec3(texture2D(sampler2D(gua_in_texture), normalized_tex_coords).xyz);
+ 
+      /*if(VertexIn.pass_radius < 0.07){
+         gua_color = pow(VertexIn.pass_color, vec3(1.4));
+      }
+      else if(VertexIn.pass_radius < 0.1){
+        //gua_color =  pow(VertexIn.pass_color, vec3(1.4))*0.5 + vec3(0.8, 0.2, 0.8)*0.5;
+        gua_color = pow(VertexIn.pass_color, vec3(1.4))*0.5 + (looked_up_color.rgb)*0.5;
+      }
+      else{*/
+        //transparency cutout
+       //if(texture2D(sampler2D(gua_in_texture), normalized_tex_coords ).a < 0.5){
+        //  discard;
+              //gua_color = vec3(0.0, 0.0, 1.0);
+        //}
+        //gua_color = vec3(texture2D(sampler2D(gua_in_texture), normalized_tex_coords).xyz);
+        if(looked_up_color.a < 0.5 ){
+          discard;
+        }
+        gua_color = looked_up_color.rgb;
+      //}
+
+  //gua_color = vec3(texture2D(sampler2D(gua_in_texture), normalized_tex_coords).xyz);
+
   //gua_color      = pow(VertexIn.pass_color, vec3(1.4));
   gua_normal     = VertexIn.pass_normal;
   gua_metalness  = 0.0;
@@ -84,4 +103,3 @@ void main()
   // clipping against clipping planes is performed in submit_fragment
   submit_fragment(gl_FragCoord.z);
 }
-

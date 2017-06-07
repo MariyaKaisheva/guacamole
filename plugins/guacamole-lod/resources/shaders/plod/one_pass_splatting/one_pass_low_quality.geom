@@ -20,6 +20,7 @@ out VertexData {
   vec3 pass_normal;
   vec3 pass_world_position;
   vec3 pass_color;
+  float pass_radius;
 } VertexOut;
 
 @include "common/gua_vertex_shader_output.glsl"
@@ -92,6 +93,7 @@ void main()
     VertexOut.pass_world_position = (gua_model_matrix * q_pos_ms).xyz;
     VertexOut.pass_normal = normalize(world_normal.xyz);
     VertexOut.pass_color = VertexIn[0].pass_color;
+    VertexOut.pass_radius = VertexIn[0].pass_radius;
     EmitVertex();
   }
   EndPrimitive();

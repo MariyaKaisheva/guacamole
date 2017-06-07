@@ -39,6 +39,7 @@
 #include <gua/renderer/BBoxPass.hpp>
 // Npr-related gua heathers:
 #include <gua/renderer/ToonResolvePass.hpp> 
+//#include <gua/rendererToonTriMeshRenderer.hpp>
 #include <gua/renderer/NprTestPass.hpp>
 #include <gua/renderer/NprOutlinePass.hpp>
 #include <gua/renderer/NprBlendingPass.hpp>
@@ -54,9 +55,9 @@
 #define USE_LOW_RES_WORKSTATION 0
 
 // global variables
-bool print_mat = false; //tmp
 bool close_window = false;
 bool reset_scene_position = false;
+bool freeze_cut_update = false; //for lod models
 bool manipulate_scene_geometry = true;
 bool use_ray_pointer = false;
 bool show_lense = false;
@@ -82,6 +83,7 @@ bool apply_halftoning_effect = false;
 bool apply_bilateral_filter = false;
 bool create_screenspace_outlines = false;
 bool no_color = false; 
+bool npr_focus = true;
 auto surfel_render_mode = gua::PLodPassDescription::SurfelRenderMode::HQ_TWO_PASS;
 std::string textrue_file_path = "data/textures/PB2.png";
 //---test use-case demo
@@ -124,7 +126,11 @@ void mouse_button(gua::utils::Trackball& trackball,
 
   trackball.mouse(button, state, trackball.posx(), trackball.posy());
 }
-
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+void take_snapshot (gua::SceneGraph& graph){
+  std::cout << graph["/model_translation/model_rotation"]->get_transform() << "ROT \n\n";
+  std::cout << graph["/model_translation"]->get_transform() << "TSL \n\n";
+}
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void scale_scene (double zoom_factor, gua::SceneGraph& graph){
   auto scaling_mat = scm::math::make_scale(zoom_factor, zoom_factor, zoom_factor);
@@ -139,7 +145,7 @@ void build_pipe (gua::PipelineDescription& pipe){
   pipe.add_pass(std::make_shared<gua::LightVisibilityPassDescription>());
   pipe.add_pass(std::make_shared<gua::ResolvePassDescription>()); 
  // pipe.add_pass(std::make_shared<gua::BBoxPassDescription>());
- // pipe.add_pass(std::make_shared<gua::DebugViewPassDescription>());
+ pipe.add_pass(std::make_shared<gua::DebugViewPassDescription>());
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -163,7 +169,7 @@ void rebuild_pipe(gua::PipelineDescription& pipe) {
   if(apply_test_demo){
     pipe.add_pass(std::make_shared<gua::NprTestPassDescription>());
     pipe.get_npr_test_pass()->sphere_radius(test_sphere_radius);
-    std::cout << "Test-demo-pass On with sphere r: " << test_sphere_radius << "\n";
+    //std::cout << "Test-demo-pass On with sphere r: " << test_sphere_radius << "\n";
   }
    
   if (apply_bilateral_filter){
@@ -179,13 +185,19 @@ void rebuild_pipe(gua::PipelineDescription& pipe) {
     pipe.get_npr_outline_pass()->store_for_blending(false);
     pipe.get_npr_outline_pass()->no_color(no_color);
 
-    if (apply_blending){
-      pipe.get_npr_outline_pass()->store_for_blending(true);
-      pipe.add_pass(std::make_shared<gua::NprBlendingPassDescription>());
-    }
+      if (apply_blending){
+        pipe.get_npr_outline_pass()->store_for_blending(true);
+        pipe.add_pass(std::make_shared<gua::NprBlendingPassDescription>());
+        pipe.get_npr_screen_blending_pass()->focus_appearance(npr_focus);
+      }
+
+
   }
+
+
+
   //pipe.add_pass(std::make_shared<gua::BBoxPassDescription>());
-  //pipe.add_pass(std::make_shared<gua::DebugViewPassDescription>());
+  pipe.add_pass(std::make_shared<gua::DebugViewPassDescription>());
   //pipe.add_pass(std::make_shared<gua::SSAAPassDescription>());
 }
 
@@ -221,6 +233,11 @@ void key_press(gua::PipelineDescription& pipe,
     rebuild_pipe(pipe);
   }
 
+  if(64 == scancode && action == 1){ // 'left Alt'
+    npr_focus = !npr_focus;
+    rebuild_pipe(pipe);
+  }
+
   //toogle what geometry is manipulated by the tracked cubic probe
   //switches between scene geometry and lense representation
   if(65 == scancode && action == 1){ //'Spacebar'
@@ -229,7 +246,7 @@ void key_press(gua::PipelineDescription& pipe,
 
   //toogle pointer position tracking
   if(108 == scancode && action == 1){ //'right Alt'
-      use_ray_pointer = !use_ray_pointer;
+    use_ray_pointer = !use_ray_pointer;
   }
   if (action == 0) return;
 	switch(std::tolower(key)){
@@ -269,9 +286,16 @@ void key_press(gua::PipelineDescription& pipe,
         }
       break;
 
+    case 'f':
+        freeze_cut_update = !freeze_cut_update;
+      break;
+
     case 'p':
-      //print_mat = !print_mat;
       show_lense =! show_lense;
+      break;
+
+    case 's':
+      take_snapshot(graph);
       break;
 
     //Npr-related options: 
@@ -321,6 +345,12 @@ void key_press(gua::PipelineDescription& pipe,
     case 't':
         apply_test_demo = !apply_test_demo;
         apply_blending = !apply_blending;
+
+
+        //create_screenspace_outlines = !create_screenspace_outlines;;
+        
+
+
         rebuild_pipe(pipe);
       break;
     //decrease blending sphere radius
@@ -346,6 +376,8 @@ void key_press(gua::PipelineDescription& pipe,
         apply_test_demo = false;
         apply_bilateral_filter = false; 
         apply_halftoning_effect = false;
+        error_threshold = 0.7;
+        surfel_render_mode = gua::PLodPassDescription::SurfelRenderMode::HQ_TWO_PASS;
         rebuild_pipe(pipe);
       break; 
 
@@ -414,7 +446,7 @@ void add_models_to_graph(std::vector<std::string> const& model_files,
     auto size_along_x = scene_bbox.size(0);
     auto size_along_y = scene_bbox.size(1);
     auto size_along_z = scene_bbox.size(2);
-    std::cout << size_along_x <<" x " << size_along_y <<" y " << size_along_z <<" z " << "SF\n";
+    //std::cout << size_along_x <<" x " << size_along_y <<" y " << size_along_z <<" z " << "SF\n";
     auto longest_axis = std::max(std::max(size_along_x, size_along_y), std::max(size_along_y, size_along_z));
     
     float scaling_factor = screen_width / (longest_axis);
@@ -469,7 +501,7 @@ int main(int argc, char** argv) {
    snail_material->set_uniform("Metalness", 0.0f);
 
   std::string directory("data/textures/");
-  snail_material->set_uniform("ColorMap", directory + "dark_red.png");
+  snail_material->set_uniform("ColorMap", directory + "snail_color.png");
   snail_material->set_uniform("Emissivity", 1.0f);
   //snail_material->set_show_back_faces(false);
 
@@ -490,6 +522,16 @@ int main(int argc, char** argv) {
                       "ray", "data/objects/ray_cylinder.obj",
                       gua::TriMeshLoader::NORMALIZE_SCALE |
                       gua::TriMeshLoader::LOAD_MATERIALS));
+
+  ///////TMP
+  //---snail----
+  auto snail(trimesh_loader.create_geometry_from_file(
+     "snail", "data/objects/ohluvka.obj",
+      snail_material,
+      gua::TriMeshLoader::NORMALIZE_POSITION |
+          gua::TriMeshLoader::NORMALIZE_SCALE));
+  snail->scale(0.4, 0.4, 0.4);
+  ///////TMP
 
 	//define screen resolution
 	gua::math::vec2ui resolution;
@@ -564,6 +606,7 @@ int main(int argc, char** argv) {
     ("help,h", "print help message")
     ("input,f", po::value<std::string>(), "specify input file with scene configuration")
     ("models,m", po::value <std::vector<std::string>>()->multitoken(), "list paths to desired input models")
+    ("transformations,t", po::value<std::string>(), "specify input file with transformation data")
   ;
 
   po::variables_map vm;
@@ -613,10 +656,11 @@ int main(int argc, char** argv) {
 
   ray_translation_node->set_transform(initial_scene_translation_mat);
   ray_rotation_node->set_transform(initial_scene_rotation_mat);
-  ray_offset->set_transform(scm::math::make_translation(0.2, 0.0, 0.0));
+  ray_offset->set_transform(scm::math::make_translation(0.0, 0.0, 0.0));
 
   //graph.add_node(lense_geometry_root, sphere);
   graph.add_node(lense_geometry_root, ring_geometry);
+  graph.add_node(lense_geometry_root, snail); //TMP
 
   graph.add_node(ray_rotation_node, ray_geometry);
 
@@ -739,7 +783,7 @@ int main(int argc, char** argv) {
     	}
     	else {
         #if(USE_SIDE_BY_SIDE && TRACKING_ENABLED)
-          #if 0
+          #if 1
             camera->set_transform(current_cam_tracking_matrix);
           #endif 
 
@@ -787,12 +831,14 @@ int main(int argc, char** argv) {
             reset_scene_position = false;
           } 
 
+          double scale_factor = test_sphere_radius*1.5; //75% influence radius 
+          lense_scaling_node->set_transform(scm::math::make_scale(scale_factor, scale_factor, scale_factor));
+
           if(!use_ray_pointer){
-            double scale_factor = test_sphere_radius*0.75;
-            lense_scaling_node->set_transform(scm::math::make_scale(scale_factor, scale_factor, scale_factor));
             if(apply_test_demo){
               gua::math::vec3d translation_vec = gua::math::get_translation(lense_translation_node->get_transform());
               pipe->get_npr_test_pass()->sphere_location((gua::math::vec3f)translation_vec);
+              pipe->get_npr_screen_blending_pass()->focus_appearance(npr_focus);
             }
           }
           else{
@@ -804,6 +850,9 @@ int main(int argc, char** argv) {
                                                         3.0f,
                                                         model_filenames,
                                                         1.0f);
+            lense_translation_node->set_transform(scm::math::make_translation(intersection.second.x, 
+                                                                              intersection.second.y, 
+                                                                              intersection.second.z));
             if(apply_test_demo){
               pipe->get_npr_test_pass()->sphere_location((gua::math::vec3f)intersection.second);
             }
@@ -811,10 +860,11 @@ int main(int argc, char** argv) {
 
           auto tex = gua::TextureDatabase::instance()->lookup(textrue_file_path);
 
+
           for(auto& geometry_node : geometry_root->get_children()){
+            std::dynamic_pointer_cast<gua::node::PLodNode>(geometry_node)->set_cut_dispatch(freeze_cut_update);
             std::dynamic_pointer_cast<gua::node::PLodNode>(geometry_node)->set_error_threshold(error_threshold);
             std::dynamic_pointer_cast<gua::node::PLodNode>(geometry_node)->set_radius_scale(radius_scale);
-            std::cout << radius_scale << "\n";
             std::dynamic_pointer_cast<gua::node::PLodNode>(geometry_node)->set_texture(tex);
           }
 
@@ -830,10 +880,6 @@ int main(int argc, char** argv) {
           }
           else{
             graph["/lense_translation/lense_rotation/lense_scaling/lense_geometry_root"]->get_tags().remove_tag("invisible");
-          }
-
-          if(print_mat){
-            std::cout << "\n";
           }
         #endif
     		renderer.queue_draw({&graph});

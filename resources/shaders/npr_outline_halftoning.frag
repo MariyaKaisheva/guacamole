@@ -14,7 +14,10 @@ uniform bool store_for_blending;
 
 
 // output
-layout(location=0) out vec3 gua_out_color;
+//layout(location=0) out vec3 gua_out_color;
+//layout(location=2) out vec3 gua_out_normal;
+// output
+@include "common/gua_fragment_shader_output.glsl"
 
 float get_linearized_depth(vec2 frag_pos){
   float lin_depth = (2*gua_clip_near)/(gua_clip_far + gua_clip_near - gua_get_unscaled_depth(frag_pos)*(gua_clip_far - gua_clip_near)); 
@@ -52,8 +55,8 @@ void main() {
                              {{43.0/65.0, 27/65.0, 39.0/65.0, 23.0/65.0, 42.0/65.0, 26.0/65.0, 38.0/65.0, 22.0/65.0}}};*/
   
 
-  vec3 color = gua_get_color(texcoord);
-  //vec3 out_color = vec3(0.0);
+  vec3 color = gua_get_color(texcoord).xyz;
+  vec3 out_color = vec3(0.0, 0.0, 1.0);
   vec3 accumulated_color_x = vec3(0.0, 0.0, 0.0);
   vec3 accumulated_color_y = vec3(0.0, 0.0, 0.0);
 
@@ -61,6 +64,8 @@ void main() {
   float cam_to_frag_dist = distance(gua_camera_position_4.xyz/gua_camera_position_4.w, gua_get_position(texcoord) );
 
 
+//  for (int r = 0; r<1; ++r){
+//    for (int c = 0; c<1; ++c){
   for (int r = -1; r<2; ++r){
     for (int c = -1; c<2; ++c){
                    //texcoord.x = (gl_FragCoord.x + r * (line_thickness/cam_to_frag_dist) ) / gua_resolution.x;
@@ -71,8 +76,9 @@ void main() {
       //accumulated_color_x += sobel_x[r +1][c +1]* get_linearized_depth(tmp_texcoord);   //for toon shading also color_map look up gives good results
       //accumulated_color_y += sobel_y[r +1][c +1]* get_linearized_depth(tmp_texcoord); 
       
-      accumulated_color_x += sobel_x[r +1][c +1]* gua_get_normal(tmp_texcoord); 
-      accumulated_color_y += sobel_y[r +1][c +1]* gua_get_normal(tmp_texcoord);
+      //TODO: outlines from normal map produce artifacts?
+      accumulated_color_x += sobel_x[r +1][c +1] * gua_get_normal(tmp_texcoord);  
+      accumulated_color_y += sobel_y[r +1][c +1] * gua_get_normal(tmp_texcoord);
       
       //accumulated_color_x += sobel_x[r +1][c +1]* gua_get_color(tmp_texcoord); 
       //accumulated_color_y += sobel_y[r +1][c +1]* gua_get_color(tmp_texcoord);
@@ -85,7 +91,7 @@ void main() {
 
 
   float depth = gua_get_depth();
-  float outline_treshhold = 2.3; //TODO meaning of the value?! 
+  float outline_treshhold = 1.3; //TODO meaning of the value?! 
   float color_scale_var = 6.0; //color discritisation value
   int kernel_size = 4; //changes the size repeated pattern grid; influences the showerdoor effect; should correspond to dither_mat dimensions
 
@@ -103,25 +109,32 @@ void main() {
       else {
         dithered_color = (ceil(gua_get_color(texcoord).xyz*color_scale_var))/color_scale_var;
       }
-      gua_out_color = dithered_color;
+
+      if(store_for_blending){
+        out_color = dithered_color/0.7;
+      }
+      else{
+        out_color = dithered_color;
+      }
+
     }
     else if(apply_outline) { //Outline effect is enabled 
 
       if(dot(edge_color, vec3(1) ) >= outline_treshhold) {
-          gua_out_color = vec3(0.0, 0.0, 0.0); //outline color 
+          out_color = vec3(0.03, 0.7, 0.2); //outline color 
       }
       else{
         if(no_color){
-          gua_out_color = vec3(1.0, 1.0, 1.0); //white foreground
+          out_color = vec3(1.0, 1.0, 1.0); //white foreground
         }else{
-          gua_out_color = gua_get_color(texcoord); //no halftoning; no outline applied
+          out_color = color; //no halftoning; no outline applied
         }
         
       }    
     }
   }
   else {//background color 
-    gua_out_color =   vec3(1.0, 1.0, 1.0); //gua_get_color(texcoord); 
+    out_color =   vec3(0.9, 1.0, 1.0); //gua_get_color(texcoord); 
   } 
 
   /*if(depth < 1){ //check for background
@@ -165,7 +178,15 @@ void main() {
     gua_out_color =   vec3(1.0, 1.0, 1.0); //gua_get_color(texcoord); 
   } */
 
-  /*if(store_for_blending){
-    gua_out_color = vec3(0.0, 1.0, 1.0); 
-  }*/
+  if(store_for_blending){   
+    gua_out_color = color; 
+    gua_out_normal = out_color; 
+
+  }
+  else{
+    gua_out_color = out_color; 
+    gua_out_normal = gua_get_normal(texcoord);
+  }
+
+  gua_out_pbr = gua_get_pbr(texcoord);
 }
