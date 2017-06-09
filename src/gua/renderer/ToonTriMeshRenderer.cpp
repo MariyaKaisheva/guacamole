@@ -45,11 +45,11 @@ ToonTriMeshRenderer::ToonTriMeshRenderer()
 #ifdef GUACAMOLE_RUNTIME_PROGRAM_COMPILATION
   ResourceFactory factory;
   std::string v_shader = factory.read_shader_file("resources/shaders/toon_tri_mesh_shader.vert");
-  std::string g_shader = factory.read_shader_file("resources/shaders/toon_tri_mesh_shader.geom");
+  std::string g_shader = factory.read_shader_file("resources/shaders/toon_tri_mesh_shader_test.geom");
   std::string f_shader = factory.read_shader_file("resources/shaders/toon_tri_mesh_shader.frag");
 #else
   std::string v_shader = Resources::lookup_shader("shaders/toon_tri_mesh_shader.vert");
-  std::string g_shader = Resources::lookup_shader("shaders/toon_tri_mesh_shader.geom")
+  std::string g_shader = Resources::lookup_shader("shaders/toon_tri_mesh_shader_test.geom")
   std::string f_shader = Resources::lookup_shader("shaders/toon_tri_mesh_shader.frag");
 #endif
 
