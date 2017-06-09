@@ -91,6 +91,9 @@ bool apply_blending = false;
 float test_sphere_radius = 0.1f;
 bool apply_test_demo = false;
 //---
+bool hide_line_art_model = false;
+bool toggle_hidden_models = false; 
+
 
 auto plod_pass = std::make_shared<gua::PLodPassDescription>();
 
@@ -145,7 +148,7 @@ void build_pipe (gua::PipelineDescription& pipe){
   pipe.add_pass(std::make_shared<gua::LightVisibilityPassDescription>());
   pipe.add_pass(std::make_shared<gua::ResolvePassDescription>()); 
  // pipe.add_pass(std::make_shared<gua::BBoxPassDescription>());
- pipe.add_pass(std::make_shared<gua::DebugViewPassDescription>());
+ //pipe.add_pass(std::make_shared<gua::DebugViewPassDescription>());
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -197,7 +200,7 @@ void rebuild_pipe(gua::PipelineDescription& pipe) {
 
 
   //pipe.add_pass(std::make_shared<gua::BBoxPassDescription>());
-  pipe.add_pass(std::make_shared<gua::DebugViewPassDescription>());
+  //pipe.add_pass(std::make_shared<gua::DebugViewPassDescription>());
   //pipe.add_pass(std::make_shared<gua::SSAAPassDescription>());
 }
 
@@ -264,13 +267,13 @@ void key_press(gua::PipelineDescription& pipe,
 
      case 'u':
         if(radius_scale <= 20.0){
-          radius_scale += 0.2;
+          radius_scale += 0.05;
         }
       break;
 
     case 'j':
-        if(radius_scale >= 0.3){
-          radius_scale -= 0.2;
+        if(radius_scale >= 0.07){
+          radius_scale -= 0.05;
         }
       break;
 
@@ -396,6 +399,19 @@ void key_press(gua::PipelineDescription& pipe,
      case '0':
         textrue_file_path = "data/textures/important_texture.jpg";
       break;
+
+      case '1':
+        toggle_hidden_models = !toggle_hidden_models;
+      break;
+
+      case '2':
+        hide_line_art_model = !hide_line_art_model;
+      break;
+
+      /*case '3':
+      break;*/
+
+
     
     default:
       break;
@@ -430,15 +446,23 @@ void add_models_to_graph(std::vector<std::string> const& model_files,
                          std::vector<scm::math::mat4f> const& model_transformations){
   gua::LodLoader lod_loader;
 
-  for (auto& model : model_files) {
+  int model_counter = 0;
+  for (auto const& model : model_files) {
 
-    auto plod_node = lod_loader.load_lod_pointcloud(model);
+    std::string node_name = std::to_string(model_counter);
+    auto plod_node = lod_loader.load_lod_pointcloud( model );
+    plod_node->set_name(node_name);
+    if( 0 == model_counter ) {
+      plod_node->get_tags().add_tag("invisible");
+    }
+
     graph.add_node(scenegraph_path, plod_node); 
     scene_bounding_boxes.push_back(plod_node->get_bounding_box()); 
     plod_node->set_draw_bounding_box(true);
 
     //TMP
     model_filenames.insert(model);
+    ++model_counter;
   }
    
     graph[scenegraph_path]->update_bounding_box();
@@ -507,8 +531,7 @@ int main(int argc, char** argv) {
 
   gua::TriMeshLoader   trimesh_loader;
   auto ring_geometry(trimesh_loader.create_geometry_from_file(
-                "ring", "data/objects/wired_icosphere.obj", //"data/objects/dashed_ring_1b025.obj", 
-                snail_material,
+                "ring", "data/objects/wired_icosphere.obj", // "data/objects/dashed_ring_1b025.obj", 
                 gua::TriMeshLoader::NORMALIZE_POSITION |
                 gua::TriMeshLoader::NORMALIZE_SCALE )); 
 
@@ -660,7 +683,7 @@ int main(int argc, char** argv) {
 
   //graph.add_node(lense_geometry_root, sphere);
   graph.add_node(lense_geometry_root, ring_geometry);
-  graph.add_node(lense_geometry_root, snail); //TMP
+  //graph.add_node(lense_geometry_root, snail); //TMP
 
   graph.add_node(ray_rotation_node, ray_geometry);
 
@@ -860,12 +883,17 @@ int main(int argc, char** argv) {
 
           auto tex = gua::TextureDatabase::instance()->lookup(textrue_file_path);
 
-
+          uint child_counter = 0;
           for(auto& geometry_node : geometry_root->get_children()){
             std::dynamic_pointer_cast<gua::node::PLodNode>(geometry_node)->set_cut_dispatch(freeze_cut_update);
             std::dynamic_pointer_cast<gua::node::PLodNode>(geometry_node)->set_error_threshold(error_threshold);
-            std::dynamic_pointer_cast<gua::node::PLodNode>(geometry_node)->set_radius_scale(radius_scale);
+
+            if( 0 != child_counter) {
+              std::dynamic_pointer_cast<gua::node::PLodNode>(geometry_node)->set_radius_scale(radius_scale);
+            }
             std::dynamic_pointer_cast<gua::node::PLodNode>(geometry_node)->set_texture(tex);
+
+            ++child_counter;
           }
 
           if(use_ray_pointer==false){
@@ -881,6 +909,20 @@ int main(int argc, char** argv) {
           else{
             graph["/lense_translation/lense_rotation/lense_scaling/lense_geometry_root"]->get_tags().remove_tag("invisible");
           }
+
+          if(toggle_hidden_models){
+            for(int i = 0; i < geometry_root->get_children().size(); ++i) {
+              auto& current_child = geometry_root->get_children().at(i);
+              if(current_child->get_tags().has_tag("invisible")){
+                current_child->get_tags().remove_tag("invisible");
+              } else {
+                current_child->get_tags().add_tag("invisible");
+              }
+              //std::cout <<  geometry_root->get_children().at(i)->get_name() << std::endl;
+            }
+            toggle_hidden_models = false;
+          }
+
         #endif
     		renderer.queue_draw({&graph});
     	}
