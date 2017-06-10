@@ -51,7 +51,7 @@
 #define USE_ANAGLYPH 0
 #define USE_MONO 0
 
-#define TRACKING_ENABLED 1
+#define TRACKING_ENABLED 0
 #define USE_LOW_RES_WORKSTATION 0
 
 // global variables
@@ -91,7 +91,6 @@ bool apply_blending = false;
 float test_sphere_radius = 0.1f;
 bool apply_test_demo = false;
 //---
-bool hide_line_art_model = false;
 bool toggle_hidden_models = false; 
 
 
@@ -147,7 +146,7 @@ void build_pipe (gua::PipelineDescription& pipe){
   pipe.add_pass(std::make_shared<gua::PLodPassDescription>());
   pipe.add_pass(std::make_shared<gua::LightVisibilityPassDescription>());
   pipe.add_pass(std::make_shared<gua::ResolvePassDescription>()); 
- // pipe.add_pass(std::make_shared<gua::BBoxPassDescription>());
+  pipe.add_pass(std::make_shared<gua::BBoxPassDescription>());
  //pipe.add_pass(std::make_shared<gua::DebugViewPassDescription>());
 }
 
@@ -194,12 +193,9 @@ void rebuild_pipe(gua::PipelineDescription& pipe) {
         pipe.get_npr_screen_blending_pass()->focus_appearance(npr_focus);
       }
 
-
   }
 
-
-
-  //pipe.add_pass(std::make_shared<gua::BBoxPassDescription>());
+  pipe.add_pass(std::make_shared<gua::BBoxPassDescription>());
   //pipe.add_pass(std::make_shared<gua::DebugViewPassDescription>());
   //pipe.add_pass(std::make_shared<gua::SSAAPassDescription>());
 }
@@ -401,17 +397,8 @@ void key_press(gua::PipelineDescription& pipe,
       break;
 
       case '1':
-        toggle_hidden_models = !toggle_hidden_models;
-      break;
-
-      case '2':
-        hide_line_art_model = !hide_line_art_model;
-      break;
-
-      /*case '3':
-      break;*/
-
-
+          toggle_hidden_models = !toggle_hidden_models;
+        break;
     
     default:
       break;
@@ -467,6 +454,8 @@ void add_models_to_graph(std::vector<std::string> const& model_files,
    
     graph[scenegraph_path]->update_bounding_box();
     auto scene_bbox = graph[scenegraph_path]->get_bounding_box();
+    std::cout << "Bbox min:" << scene_bbox.min << std::endl;
+    std::cout << "Bbox max:" << scene_bbox.max << std::endl; 
     auto size_along_x = scene_bbox.size(0);
     auto size_along_y = scene_bbox.size(1);
     auto size_along_z = scene_bbox.size(2);
@@ -477,7 +466,7 @@ void add_models_to_graph(std::vector<std::string> const& model_files,
     auto all_geometry_nodes = graph[scenegraph_path]->get_children();
     for(auto& node : all_geometry_nodes){
       node->translate(-scene_bbox.center().x, -scene_bbox.center().y, -scene_bbox.center().z);
-      node->translate(0.0, 1.6, 0.0);
+      //node->translate(0.0, 1.6, 0.0);
       node->scale(scaling_factor);
       node->set_draw_bounding_box(true);
     }
@@ -805,6 +794,7 @@ int main(int argc, char** argv) {
     		loop.stop();
     	}
     	else {
+        auto tex = gua::TextureDatabase::instance()->lookup(textrue_file_path);
         #if(USE_SIDE_BY_SIDE && TRACKING_ENABLED)
           #if 1
             camera->set_transform(current_cam_tracking_matrix);
@@ -881,7 +871,7 @@ int main(int argc, char** argv) {
             }
           }
 
-          auto tex = gua::TextureDatabase::instance()->lookup(textrue_file_path);
+          
 
           uint child_counter = 0;
           for(auto& geometry_node : geometry_root->get_children()){
@@ -922,7 +912,33 @@ int main(int argc, char** argv) {
             }
             toggle_hidden_models = false;
           }
+        #else
+          graph["/ray_local_offset"]->get_tags().add_tag("invisible");
+          graph["/lense_translation/lense_rotation/lense_scaling/lense_geometry_root"]->get_tags().add_tag("invisible");
+          uint child_counter = 0;
+          for(auto& geometry_node : geometry_root->get_children()){
+            std::dynamic_pointer_cast<gua::node::PLodNode>(geometry_node)->set_cut_dispatch(freeze_cut_update);
+            std::dynamic_pointer_cast<gua::node::PLodNode>(geometry_node)->set_error_threshold(error_threshold);
 
+            if( 0 != child_counter) {
+              std::dynamic_pointer_cast<gua::node::PLodNode>(geometry_node)->set_radius_scale(radius_scale);
+            }
+            std::dynamic_pointer_cast<gua::node::PLodNode>(geometry_node)->set_texture(tex);
+
+            ++child_counter;
+          }
+          if(toggle_hidden_models){
+            for(int i = 0; i < geometry_root->get_children().size(); ++i) {
+              auto& current_child = geometry_root->get_children().at(i);
+              if(current_child->get_tags().has_tag("invisible")){
+                current_child->get_tags().remove_tag("invisible");
+              } else {
+                current_child->get_tags().add_tag("invisible");
+              }
+              //std::cout <<  geometry_root->get_children().at(i)->get_name() << std::endl;
+            }
+            toggle_hidden_models = false;
+          }
         #endif
     		renderer.queue_draw({&graph});
     	}
