@@ -47,9 +47,9 @@
 
 #include <boost/program_options.hpp>
 
-#define USE_SIDE_BY_SIDE 1
+#define USE_SIDE_BY_SIDE 0
 #define USE_ANAGLYPH 0
-#define USE_MONO 0
+#define USE_MONO 1
 
 #define TRACKING_ENABLED 0
 #define USE_LOW_RES_WORKSTATION 0
@@ -454,19 +454,14 @@ void add_models_to_graph(std::vector<std::string> const& model_files,
    
     graph[scenegraph_path]->update_bounding_box();
     auto scene_bbox = graph[scenegraph_path]->get_bounding_box();
-    std::cout << "Bbox min:" << scene_bbox.min << std::endl;
-    std::cout << "Bbox max:" << scene_bbox.max << std::endl; 
     auto size_along_x = scene_bbox.size(0);
     auto size_along_y = scene_bbox.size(1);
     auto size_along_z = scene_bbox.size(2);
-    //std::cout << size_along_x <<" x " << size_along_y <<" y " << size_along_z <<" z " << "SF\n";
     auto longest_axis = std::max(std::max(size_along_x, size_along_y), std::max(size_along_y, size_along_z));
-    
     float scaling_factor = screen_width / (longest_axis);
     auto all_geometry_nodes = graph[scenegraph_path]->get_children();
     for(auto& node : all_geometry_nodes){
       node->translate(-scene_bbox.center().x, -scene_bbox.center().y, -scene_bbox.center().z);
-      //node->translate(0.0, 1.6, 0.0);
       node->scale(scaling_factor);
       node->set_draw_bounding_box(true);
     }
@@ -581,8 +576,8 @@ int main(int argc, char** argv) {
   screen->rotate(screen_rotation_y, 0, 1, 0);
   //screen->rotate(screen_rotation_z, 0, 0, 1);
   screen->translate(screen_center_offset_x, screen_center_offset_y, screen_center_offset_z);
-  #else
-  screen->translate(0, 0, -0.6);
+ // #else
+  //screen->translate(0, 0, -0.6);
   #endif
 
 	//camera configuration ///////////////////////////
@@ -592,8 +587,8 @@ int main(int argc, char** argv) {
   camera->translate(screen_center_offset_x - distance_to_screen, screen_center_offset_y, screen_center_offset_z);
   navigation_eye_offset->translate(0, 0, glass_eye_offset);
   #else 
-  auto camera = graph.add_node<gua::node::CameraNode>("/screen", "cam");
-  camera->translate(0.0, 0.0, - distance_to_screen);
+  auto camera = graph.add_node<gua::node::CameraNode>("/", "cam");
+  camera->translate(0.0, 0.0, distance_to_screen);
   #endif
 	#if USE_MONO 
   camera->config.set_enable_stereo(false);
@@ -652,11 +647,18 @@ int main(int argc, char** argv) {
       return 0;
     }
   ///////////////////////////////////////////////////
+  #if USE_SIDE_BY_SIDE
   auto initial_scene_translation_mat = gua::math::mat4(scm::math::make_translation(screen_center_offset_x, 
                                                                                   screen_center_offset_y, 
                                                                                   screen_center_offset_z));
   auto initial_scene_rotation_mat = gua::math::mat4(scm::math::make_rotation(-45.0, 1.0, 0.0, 0.0)); 
   auto initial_scene_scaling_mat = gua::math::mat4(scm::math::make_scale(1.0, 1.0, 1.0));
+  #else
+  auto initial_scene_translation_mat = gua::math::mat4(scm::math::make_translation(0.0, 0.0, -0.18));
+  auto initial_scene_rotation_mat = gua::math::mat4(scm::math::make_rotation(-45.0, 1.0, 0.0, 0.0)); 
+  auto initial_scene_scaling_mat = gua::math::mat4(scm::math::make_scale(0.15, 0.15, 0.15));
+  #endif
+
   
   model_translation_node->set_transform(initial_scene_translation_mat);
   model_rotation_node->set_transform(initial_scene_rotation_mat);
@@ -796,9 +798,9 @@ int main(int argc, char** argv) {
     	else {
         auto tex = gua::TextureDatabase::instance()->lookup(textrue_file_path);
         #if(USE_SIDE_BY_SIDE && TRACKING_ENABLED)
-          #if 1
+          /*#if 1
             camera->set_transform(current_cam_tracking_matrix);
-          #endif 
+          #endif */
 
           auto current_probe_rotation_mat = gua::math::get_rotation(current_probe_tracking_matrix);
           auto current_probe_translation_mat = scm::math::make_translation(current_probe_tracking_matrix[12], current_probe_tracking_matrix[13], current_probe_tracking_matrix[14]);
@@ -908,13 +910,12 @@ int main(int argc, char** argv) {
               } else {
                 current_child->get_tags().add_tag("invisible");
               }
-              //std::cout <<  geometry_root->get_children().at(i)->get_name() << std::endl;
             }
             toggle_hidden_models = false;
           }
         #else
-          graph["/ray_local_offset"]->get_tags().add_tag("invisible");
-          graph["/lense_translation/lense_rotation/lense_scaling/lense_geometry_root"]->get_tags().add_tag("invisible");
+         graph["/ray_local_offset"]->get_tags().add_tag("invisible");
+         graph["/lense_translation/lense_rotation/lense_scaling/lense_geometry_root"]->get_tags().add_tag("invisible");
           uint child_counter = 0;
           for(auto& geometry_node : geometry_root->get_children()){
             std::dynamic_pointer_cast<gua::node::PLodNode>(geometry_node)->set_cut_dispatch(freeze_cut_update);
