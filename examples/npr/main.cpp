@@ -92,6 +92,7 @@ float test_sphere_radius = 0.1f;
 bool apply_test_demo = false;
 //---
 bool toggle_hidden_models = false; 
+bool play_kincect_sequence = true; 
 
 
 auto plod_pass = std::make_shared<gua::PLodPassDescription>();
@@ -146,7 +147,7 @@ void build_pipe (gua::PipelineDescription& pipe){
   pipe.add_pass(std::make_shared<gua::PLodPassDescription>());
   pipe.add_pass(std::make_shared<gua::LightVisibilityPassDescription>());
   pipe.add_pass(std::make_shared<gua::ResolvePassDescription>()); 
-  pipe.add_pass(std::make_shared<gua::BBoxPassDescription>());
+  //pipe.add_pass(std::make_shared<gua::BBoxPassDescription>());
  //pipe.add_pass(std::make_shared<gua::DebugViewPassDescription>());
 }
 
@@ -195,7 +196,7 @@ void rebuild_pipe(gua::PipelineDescription& pipe) {
 
   }
 
-  pipe.add_pass(std::make_shared<gua::BBoxPassDescription>());
+  //pipe.add_pass(std::make_shared<gua::BBoxPassDescription>());
   //pipe.add_pass(std::make_shared<gua::DebugViewPassDescription>());
   //pipe.add_pass(std::make_shared<gua::SSAAPassDescription>());
 }
@@ -294,7 +295,9 @@ void key_press(gua::PipelineDescription& pipe,
       break;
 
     case 's':
-      take_snapshot(graph);
+      //take_snapshot(graph);
+      //stop / start player behaviour
+      play_kincect_sequence = !play_kincect_sequence; 
       break;
 
     //Npr-related options: 
@@ -439,7 +442,7 @@ void add_models_to_graph(std::vector<std::string> const& model_files,
     std::string node_name = std::to_string(model_counter);
     auto plod_node = lod_loader.load_lod_pointcloud( model );
     plod_node->set_name(node_name);
-    if( 0 == model_counter ) {
+    if( 0 != model_counter ) {
       plod_node->get_tags().add_tag("invisible");
     }
 
@@ -684,7 +687,7 @@ int main(int argc, char** argv) {
   camera->set_pipeline_description(pipe);
 
 	//add mouse interaction
-	gua::utils::Trackball trackball(0.1, 0.02, 0.02); 
+	gua::utils::Trackball trackball(0.002, 0.0002, 0.05); 
 
 	//window configuration/////////////////////////////
 	auto window = std::make_shared<gua::GlfwWindow>();
@@ -787,6 +790,7 @@ int main(int argc, char** argv) {
 	gua::events::MainLoop loop;
 	double tick_time = 1.0/500.0;
 	gua::events::Ticker ticker(loop, tick_time);
+  size_t ctr{};
 	ticker.on_tick.connect([&](){
 
 		//terminate application
@@ -914,6 +918,13 @@ int main(int argc, char** argv) {
             toggle_hidden_models = false;
           }
         #else
+              // apply trackball matrix to object
+        gua::math::mat4 modelmatrix = scm::math::make_translation(gua::math::float_t(trackball.shiftx()),
+                                                                  gua::math::float_t(trackball.shifty()),
+                                                                  gua::math::float_t(trackball.distance())) *
+                                      gua::math::mat4(trackball.rotation());
+
+          model_translation_node->set_transform(modelmatrix);
          graph["/ray_local_offset"]->get_tags().add_tag("invisible");
          graph["/lense_translation/lense_rotation/lense_scaling/lense_geometry_root"]->get_tags().add_tag("invisible");
           uint child_counter = 0;
@@ -921,26 +932,33 @@ int main(int argc, char** argv) {
             std::dynamic_pointer_cast<gua::node::PLodNode>(geometry_node)->set_cut_dispatch(freeze_cut_update);
             std::dynamic_pointer_cast<gua::node::PLodNode>(geometry_node)->set_error_threshold(error_threshold);
 
-            if( 0 != child_counter) {
+           // if( 0 != child_counter) {
               std::dynamic_pointer_cast<gua::node::PLodNode>(geometry_node)->set_radius_scale(radius_scale);
-            }
+            //}
             std::dynamic_pointer_cast<gua::node::PLodNode>(geometry_node)->set_texture(tex);
 
             ++child_counter;
           }
           if(toggle_hidden_models){
-            for(int i = 0; i < geometry_root->get_children().size(); ++i) {
-              auto& current_child = geometry_root->get_children().at(i);
-              if(current_child->get_tags().has_tag("invisible")){
-                current_child->get_tags().remove_tag("invisible");
-              } else {
-                current_child->get_tags().add_tag("invisible");
+              for(int i = 0; i < geometry_root->get_children().size(); ++i) {
+                auto& current_child = geometry_root->get_children().at(i);
+                if(current_child->get_tags().has_tag("invisible")){
+                  current_child->get_tags().remove_tag("invisible");
+                } else {
+                  current_child->get_tags().add_tag("invisible");
+                }
+                //std::cout <<  geometry_root->get_children().at(i)->get_name() << std::endl;
               }
-              //std::cout <<  geometry_root->get_children().at(i)->get_name() << std::endl;
-            }
-            toggle_hidden_models = false;
+              toggle_hidden_models = false;
           }
         #endif
+
+         /*if (ctr++ % 150 == 0){
+          std::cout << "Frame time: " << 1000.f / window->get_rendering_fps() << " ms, fps: "
+                << window->get_rendering_fps() << ", app fps: "
+                << renderer.get_application_fps() << std::endl;
+         }*/
+          
     		renderer.queue_draw({&graph});
     	}
 	});
