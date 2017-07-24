@@ -95,7 +95,7 @@ include(FindSchism)
 
 ## boost ######################################################
 if (UNIX)
-  set (BOOST_ROOT "/opt/boost/latest" CACHE PATH "Set to your boost install")
+  set (BOOST_ROOT "/opt/boost/current" CACHE PATH "Set to your boost install")
 elseif (WIN32)
   set(BOOST_ROOT ${GLOBAL_EXT_DIR}/boost CACHE PATH "Set to your boost install")
   #set(Boost_USE_STATIC_LIBS ON)
@@ -203,8 +203,8 @@ if (UNIX)
   set(CMAKE_CXX_FLAGS_RELWITHDEBINFO  "-O2 -g -DNDEBUG --std=c++11")
   set(CMAKE_CXX_FLAGS_DEBUG "-g -Wall --std=c++11 -Wall")
 elseif(MSVC)
-  set(CMAKE_CXX_FLAGS_RELEASE "-D NDEBUG -D _USE_MATH_DEFINES -D _SECURE_SCL=0 -D _SCL_SECURE_NO_WARNINGS -D _CRT_SECURE_NO_DEPRECATE /MD /MP")
-  set(CMAKE_CXX_FLAGS_DEBUG "-D_DEBUG -D _USE_MATH_DEFINES /MDd /Zi /MP")
+  set(CMAKE_CXX_FLAGS_RELEASE "-D NDEBUG -D WIN32_LEAN_AND_MEAN -D _USE_MATH_DEFINES -D NOMINMAX -D _SECURE_SCL=0 -D _SCL_SECURE_NO_WARNINGS -D _CRT_SECURE_NO_DEPRECATE /MD /MP")
+  set(CMAKE_CXX_FLAGS_DEBUG "-D_DEBUG -D WIN32_LEAN_AND_MEAN -D _USE_MATH_DEFINES -D NOMINMAX /MDd /Zi /MP")
 endif(UNIX)
 
 ################################################################

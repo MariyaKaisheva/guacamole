@@ -18,43 +18,59 @@
  * with this program. If not, see <http://www.gnu.org/licenses/>.             *
  *                                                                            *
  ******************************************************************************/
+// class header
+#include <gua/renderer/TV_3SurfacePass.hpp>
 
-#ifndef GUA_LINKED_LIST_ACCUM_SUB_RENDERER_HPP
-#define GUA_LINKED_LIST_ACCUM_SUB_RENDERER_HPP
-
-
+// guacamole headers
+#include <gua/renderer/TV_3Resource.hpp>
+#include <gua/renderer/TV_3SurfaceRenderer.hpp>
 #include <gua/renderer/Pipeline.hpp>
-#include <gua/renderer/PLodSubRenderer.hpp>
+#include <gua/databases.hpp>
+#include <gua/utils/Logger.hpp>
 
- namespace gua {
+#include <gua/config.hpp>
 
-  class PLodSubRenderer;
+#include <scm/gl_core/shader_objects.h>
 
-  class GUA_LOD_DLL LinkedListAccumSubRenderer : public PLodSubRenderer {
+// external headers
+#include <sstream>
+#include <fstream>
+#include <regex>
+#include <list>
 
-  public:
-  	LinkedListAccumSubRenderer();
+namespace gua {
 
-    virtual void create_gpu_resources(gua::RenderContext const& ctx,
-                                       scm::math::vec2ui const& render_target_dims,
-                                       gua::plod_shared_resources& shared_resources) override;
+////////////////////////////////////////////////////////////////////////////////
 
-    virtual void render_sub_pass(Pipeline& pipe, PipelinePassDescription const& desc,
-                                 gua::plod_shared_resources& shared_resources,
-                                 std::vector<node::Node*>& sorted_models,
-                                 std::unordered_map<node::PLodNode*, std::unordered_set<lamure::node_t> >& nodes_in_frustum_per_model,
-                                 lamure::context_t context_id,
-                                 lamure::view_t lamure_view_id) override;
+TV_3SurfacePassDescription::TV_3SurfacePassDescription()
+  : PipelinePassDescription()
 
-  private: //shader related auxiliary methods
-    virtual void _load_shaders();
+{
+  needs_color_buffer_as_input_ = false;
+  writes_only_color_buffer_ = false;
+  enable_for_shadows_ = true;
+  rendermode_ = RenderMode::Custom;
+}
 
-    virtual void _upload_model_dependent_uniforms(std::shared_ptr<ShaderProgram> current_material_shader, RenderContext const& ctx, node::PLodNode* plod_node, gua::Pipeline& pipe);
-  private:
-    scm::gl::depth_stencil_state_ptr             depth_test_without_writing_depth_stencil_state_;
+////////////////////////////////////////////////////////////////////////////////
 
-    scm::gl::rasterizer_state_ptr                no_backface_culling_rasterizer_state_;
+std::shared_ptr<PipelinePassDescription> TV_3SurfacePassDescription::make_copy() const {
+  return std::make_shared<TV_3SurfacePassDescription>(*this);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+PipelinePass TV_3SurfacePassDescription::make_pass(RenderContext const& ctx, SubstitutionMap& substitution_map) {
+  PipelinePass pass{ *this, ctx, substitution_map };
+
+  auto renderer = std::make_shared<TV_3SurfaceRenderer>(ctx, substitution_map);
+
+  pass.process_ = [renderer](
+    PipelinePass& pass, PipelinePassDescription const& desc, Pipeline & pipe) {
+    renderer->render(pipe, desc);
   };
- } 
 
- #endif //GUA_LINKED_LIST_ACCUM_SUB_RENDERER_HPP
+  return pass;
+}
+
+}

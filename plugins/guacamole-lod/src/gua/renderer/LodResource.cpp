@@ -179,11 +179,11 @@ void LodResource::ray_test(Ray const& ray,
   const auto model_transform = owner->get_cached_world_transform();
   const auto world_origin = ray.origin_;
   const auto world_direction = scm::math::normalize(ray.direction_);
-  /*
+  
   lamure::ren::ray lod_ray(math::vec3f(world_origin), math::vec3f(world_direction), scm::math::length(ray.direction_));
   lamure::ren::ray::intersection intersection;
 
-  auto lod_node = reinterpret_cast<node::LodNode*>(owner);
+  auto lod_node = reinterpret_cast<node::PLodNode*>(owner);
 
   float aabb_scale = 9.0f;
   unsigned int max_depth = 255;
@@ -196,16 +196,22 @@ void LodResource::ray_test(Ray const& ray,
   if (lod_ray.intersect_model(model_id, math::mat4f(model_transform), aabb_scale, max_depth, surfel_skip, wysiwyg, intersection)) {
     has_hit = true;
     pick.distance = intersection.distance_;
+
     pick.world_position = intersection.position_;
     auto object_position = scm::math::inverse(model_transform) * gua::math::vec4(intersection.position_.x, intersection.position_.y, intersection.position_.z, 1.0);
     pick.position = math::vec3(object_position.x, object_position.y, object_position.z);
     pick.normal = intersection.normal_;
   }
 
-  if (has_hit && (pick.intersection < hits.begin()->distance)) {
-    hits.insert(pick);
+  if (has_hit) {
+    if (hits.empty()) {
+      hits.insert(pick);
+    }
+    else if (pick.distance < hits.begin()->distance) {
+      hits.insert(pick);
+    }
   }
-*/
+
 }
 
 /////////////////////////////////////////////////////////////////////////////////

@@ -28,6 +28,14 @@
 
 #include <gua/renderer/GBuffer.hpp>
 //#include <gua/renderer/Texture2D.hpp> 
+namespace {
+
+gua::math::vec2ui get_handle(scm::gl::texture_image_ptr const& tex) {
+  uint64_t handle = tex->native_handle();
+  return gua::math::vec2ui(handle & 0x00000000ffffffff, handle & 0xffffffff00000000);
+}
+
+}
 
 namespace gua {
 
@@ -73,6 +81,7 @@ namespace gua {
 
     bool write_depth = true;
     target.bind(ctx, write_depth);
+    target.set_viewport(ctx);
 
     MaterialShader* current_material(nullptr);
     std::shared_ptr<ShaderProgram> current_material_program;
@@ -105,6 +114,7 @@ namespace gua {
         if (program_changed) {
           current_material_program->unuse(ctx);
           current_material_program->use(ctx);
+          current_material_program->set_uniform(ctx, ::get_handle(target.get_depth_buffer()), "gua_gbuffer_depth");
         }
 
         plod_node->get_material()->apply_uniforms(ctx, current_material_program.get(), view_id);

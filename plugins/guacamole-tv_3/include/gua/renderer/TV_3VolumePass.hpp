@@ -18,40 +18,44 @@
  * with this program. If not, see <http://www.gnu.org/licenses/>.             *
  *                                                                            *
  ******************************************************************************/
+#ifndef GUA_TV_3_VOLUME_PASS_HPP
+#define GUA_TV_3_VOLUME_PASS_HPP
 
-#ifndef GUA_SHADOW_SUB_RENDERER_HPP
-#define GUA_SHADOW_SUB_RENDERER_HPP
+// guacamole headers
+#include <gua/renderer/TV_3.hpp>
+#include <gua/renderer/PipelinePass.hpp>
 
-#include <gua/renderer/Pipeline.hpp>
-#include <gua/renderer/PLodSubRenderer.hpp>
+namespace gua {
 
- namespace gua {
+  class GUA_TV_3_DLL TV_3VolumePassDescription : public PipelinePassDescription {
 
-  class PLodSubRenderer;
+  public : // typedefs, enums
+/*
+  enum VolumeRenderMode {
+    
+    ISOSURFACE = 0,
+    MAX_INTENSITY = 1,
+    COMPOSITING = 2,
+    AVG_INTENSITY = 3
 
-  class GUA_LOD_DLL ShadowSubRenderer : public PLodSubRenderer {
-
-  public:
-  	ShadowSubRenderer();
-
-    virtual void create_gpu_resources(gua::RenderContext const& ctx,
-                                       scm::math::vec2ui const& render_target_dims,
-                                       gua::plod_shared_resources& shared_resources) override;
-
-    virtual void render_sub_pass(Pipeline& pipe, PipelinePassDescription const& desc,
-                                 gua::plod_shared_resources& shared_resources,
-                                 std::vector<node::Node*>& sorted_models,
-                                 std::unordered_map<node::PLodNode*, std::unordered_set<lamure::node_t> >& nodes_in_frustum_per_model,
-                                 lamure::context_t context_id,
-                                 lamure::view_t lamure_view_id) override;
-
-  private: //shader related auxiliary methods
-    virtual void _load_shaders();
-
-    virtual void _upload_model_dependent_uniforms(RenderContext const& ctx, node::PLodNode* plod_node, gua::Pipeline& pipe);
-  private:
-    scm::gl::rasterizer_state_ptr   no_backface_culling_rasterizer_state_;
   };
- } 
+*/
+   friend class Pipeline;
 
- #endif //GUA_SHADOW_SUB_RENDERER_HPP
+  public :
+
+    TV_3VolumePassDescription();
+    std::shared_ptr<PipelinePassDescription> make_copy() const override;
+    PipelinePass make_pass(RenderContext const&, SubstitutionMap&) override;
+
+/*
+    TV_3VolumePassDescription& mode(VolumeRenderMode const mode);
+    VolumeRenderMode mode() const;
+*/
+  private :
+    //VolumeRenderMode volume_render_mode_;
+};
+
+}
+
+#endif  // GUA_TV_3_VOLUME_PASS_HPP

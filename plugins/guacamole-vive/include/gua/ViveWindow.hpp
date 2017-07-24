@@ -46,40 +46,40 @@ namespace gua {
 class GUA_VIVE_DLL ViveWindow : public GlfwWindow {
  public:
 
-    ViveWindow(std::string const& display);
+    ViveWindow(std::string const& display = ":0.0");
     virtual ~ViveWindow();
+
     float const get_IPD() const;
     math::vec2ui get_window_resolution() const;
-    math::mat4 const& get_vive_sensor_orientation() const;
+    math::mat4 const& get_hmd_sensor_orientation() const;
+
     math::vec2 const& get_left_screen_size() const;
     math::vec2 const& get_right_screen_size() const;
     math::vec3 const& get_left_screen_translation() const;
     math::vec3 const& get_right_screen_translation() const;
 
-    void display(std::shared_ptr<Texture> const& texture, bool is_left) override;
+    void display(scm::gl::texture_2d_ptr const& texture, bool is_left) override;
 
+    void open() override;
+    void init_context() override;
     void start_frame() override;
     void finish_frame() override;
 
  private:
 
-    void initialize_vive_environment();
+    void initialize_hmd_environment();
     void calculate_viewing_setup();
-    void init_context();
-    void open();
 
-    math::vec2 screen_size_[2]; // in meters?
-    math::vec3 screen_translation_[2]; // in meters?
+    std::string display_name_;
+    vr::IVRSystem *pVRSystem = nullptr;
+    math::mat4 hmd_sensor_orientation_;
 
-    math::mat4 vive_sensor_orientation_;
+    math::vec2 screen_size_[2];
+    math::vec3 screen_translation_[2];
 
     // GL Frame Buffers
     unsigned int blit_fbo_read_;
     unsigned int blit_fbo_write_;
-
-    std::string display_name_;
-
-    vr::IVRSystem *pVRSystem = nullptr;
 
     unsigned left_tex_id_ = 0;
     unsigned right_tex_id_ = 0;
@@ -88,6 +88,6 @@ class GUA_VIVE_DLL ViveWindow : public GlfwWindow {
     scm::gl::texture_2d_ptr right_texture_ = nullptr;
 };
 
-}  // namespace gua
+}
 
 #endif  // GUA_VIVE_WINDOW_HPP

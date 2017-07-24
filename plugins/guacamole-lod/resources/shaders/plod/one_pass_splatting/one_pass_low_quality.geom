@@ -1,10 +1,19 @@
 @include "common/header.glsl"
+ 
+// using this method only one triangle is generated per splat 
+//   -> less geometry/more fragments
+#define GENERATE_SINGLE_TRIANGLE_PER_SPLAT 0
 
 ///////////////////////////////////////////////////////////////////////////////
 // input
 ///////////////////////////////////////////////////////////////////////////////
 layout (points) in;
-layout (triangle_strip, max_vertices = 4) out;
+#if GENERATE_SINGLE_TRIANGLE_PER_SPLAT 
+  layout (triangle_strip, max_vertices = 3) out;
+#else
+  layout (triangle_strip, max_vertices = 4) out;
+  const float index_arr[8] = {-1.0, -1.0, 1.0, 1.0, -1.0, 1.0, -1.0, 1.0};
+#endif
 
 in VertexData {
   vec3 pass_normal;
@@ -35,8 +44,6 @@ uniform mat4 inverse_transpose_model_view_matrix;
 uniform float radius_scaling;
 uniform float max_surfel_radius;
 
-const float index_arr[8] = {-1.0, -1.0, 1.0, 1.0, -1.0, 1.0, -1.0, 1.0};
-
 ///////////////////////////////////////////////////////////////////////////////
 // main program
 ///////////////////////////////////////////////////////////////////////////////
@@ -47,7 +54,9 @@ void main()
   vec4 view_normal  = inverse_transpose_model_view_matrix * object_normal;
 
   // do not emit primitives for backfaces 
-  if (enable_backface_culling && view_normal.z < 0.0) {
+  //if (enable_backface_culling && view_normal.z < 0.0) {
+  if (enable_backface_culling && 0.0 > 
+      dot(normalize(view_normal.xyz), normalize(-(gua_model_view_matrix * gl_in[0].gl_Position).xyz))) {
     return;
   } 
 
@@ -66,6 +75,39 @@ void main()
   float splat_size = clamp(radius_scaling * VertexIn[0].pass_radius, 0.0, max_surfel_radius);
   ms_u *= splat_size;
   ms_v *= splat_size;
+
+#if GENERATE_SINGLE_TRIANGLE_PER_SPLAT
+  
+   const float sqrt2_plus1      = 1 + 1.4142135623730950488016887242097;
+   vec3 normalized_world_normal = normalize(world_normal.xyz);
+
+   vec4 a = vec4(gl_in[0].gl_Position.xyz - ms_u - ms_v, 1.0);
+   gl_Position                   = gua_model_view_projection_matrix * a;
+   VertexOut.pass_uv_coords      = vec2(-1.0, -1.0);
+   VertexOut.pass_world_position = (gua_model_matrix * a).xyz;
+   VertexOut.pass_normal         = normalized_world_normal;
+   VertexOut.pass_color          = VertexIn[0].pass_color;
+   EmitVertex();
+   
+   a = vec4(gl_in[0].gl_Position.xyz - ms_u + sqrt2_plus1 * ms_v, 1.0);
+   gl_Position                   = gua_model_view_projection_matrix * a;
+   VertexOut.pass_uv_coords      = vec2(-1.0, sqrt2_plus1);
+   VertexOut.pass_world_position = (gua_model_matrix * a).xyz;
+   VertexOut.pass_normal         = normalized_world_normal;
+   VertexOut.pass_color          = VertexIn[0].pass_color;
+   EmitVertex();
+
+   a = vec4(gl_in[0].gl_Position.xyz + sqrt2_plus1 * ms_u - ms_v, 1.0);
+   gl_Position                   = gua_model_view_projection_matrix * a;
+   VertexOut.pass_uv_coords      = vec2(sqrt2_plus1, -1.0);
+   VertexOut.pass_world_position = (gua_model_matrix * a).xyz;
+   VertexOut.pass_normal         = normalized_world_normal;
+   VertexOut.pass_color          = VertexIn[0].pass_color;
+   EmitVertex();
+
+
+
+#else
 
   // helper matrix for triangle strip generation
   mat3x3 step_uv = mat3x3(gl_in[0].gl_Position.xyz,
@@ -96,6 +138,8 @@ void main()
     VertexOut.pass_radius = VertexIn[0].pass_radius;
     EmitVertex();
   }
+#endif
   EndPrimitive();
+
 }
 

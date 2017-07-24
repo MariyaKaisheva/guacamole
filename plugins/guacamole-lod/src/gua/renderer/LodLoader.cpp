@@ -58,7 +58,7 @@ std::shared_ptr<node::PLodNode> LodLoader::load_lod_pointcloud(std::string const
     }
     else {
       lamure::ren::model_database* database = lamure::ren::model_database::get_instance();
-
+      Logger::LOG_WARNING << "Trying to load " << filename << std::endl;
       GeometryDescription desc("PLod", filename, 0, flags);
 
       lamure::model_t model_id = database->add_model(filename, desc.unique_key());
@@ -291,7 +291,7 @@ std::set<PickResult> LodLoader::pick_lod_interpolate(math::vec3 const& bundle_or
   scm::math::vec3f ray_pos = scm::math::vec3f(bundle_origin.x, bundle_origin.y, bundle_origin.z);
   scm::math::vec3f ray_fwd = scm::math::vec3f(bundle_forward.x, bundle_forward.y, bundle_forward.z);
   scm::math::vec3f ray_up = scm::math::vec3f(bundle_up.x, bundle_up.y, bundle_up.z);
-/*  
+
   lamure::ren::ray ray(ray_pos, ray_fwd, max_distance);
   lamure::ren::ray::intersection intersection;
 
@@ -305,7 +305,7 @@ std::set<PickResult> LodLoader::pick_lod_interpolate(math::vec3 const& bundle_or
                       math::vec2());
     results.insert(result);
   }
-*/
+
   return results;
   
 }
