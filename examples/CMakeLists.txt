@@ -60,9 +60,9 @@ IF (GUACAMOLE_EXAMPLES)
     add_subdirectory(animation)
   endif(${PLUGIN_guacamole-skelanim} AND ${GUACAMOLE_FBX})
 
-  if(${PLUGIN_guacamole-skelanim} AND ${PLUGIN_guacamole-lod} AND ${GUACAMOLE_FBX} AND ${GUACAMOLE_GLFW3})
+  if(${PLUGIN_guacamole-lod} AND ${GUACAMOLE_FBX} AND ${GUACAMOLE_GLFW3})
     add_subdirectory(npr)
-  endif(${PLUGIN_guacamole-skelanim} AND ${PLUGIN_guacamole-lod} AND ${GUACAMOLE_FBX} AND ${GUACAMOLE_GLFW3})
+  endif(${PLUGIN_guacamole-lod} AND ${GUACAMOLE_FBX} AND ${GUACAMOLE_GLFW3})
 
   # nurbs example requires GLFW3 and nurbs-plugin
   IF (${PLUGIN_guacamole-nurbs} AND ${GUACAMOLE_GLFW3})

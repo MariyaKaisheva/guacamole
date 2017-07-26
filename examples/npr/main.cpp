@@ -47,6 +47,8 @@
 
 #include <boost/program_options.hpp>
 
+#include <fstream>
+
 #define USE_SIDE_BY_SIDE 1
 #define USE_ANAGLYPH 0
 #define USE_MONO 0
@@ -88,7 +90,7 @@ auto surfel_render_mode = gua::PLodPassDescription::SurfelRenderMode::HQ_TWO_PAS
 std::string textrue_file_path = "data/textures/PB2.png";
 //---test use-case demo
 bool apply_blending = false;
-float test_sphere_radius = 0.1f;
+float test_sphere_radius = 0.25f;
 bool apply_test_demo = false;
 //---
 bool toggle_hidden_models = false; 
@@ -124,6 +126,7 @@ auto plod_pass = std::make_shared<gua::PLodPassDescription>();
     halftoning_pipe->add_pass(std::make_shared<gua::ResolvePassDescription>()); 
     halftoning_pipe->add_pass(std::make_shared<gua::NprOutlinePassDescription>());
     halftoning_pipe->get_npr_outline_pass()->halftoning(true);
+    halftoning_pipe->get_npr_outline_pass()->apply_outline(false);
   
   
     outline_pipe = std::make_shared<gua::PipelineDescription>();
@@ -137,15 +140,13 @@ auto plod_pass = std::make_shared<gua::PLodPassDescription>();
     outline_pipe->get_npr_outline_pass()->apply_outline(true);
     outline_pipe->get_npr_outline_pass()->no_color(true);
 
-    blending_halftoning_pipe = std::make_shared<gua::PipelineDescription>();
+    /*blending_halftoning_pipe = std::make_shared<gua::PipelineDescription>();
     blending_halftoning_pipe->clear();
     blending_halftoning_pipe->add_pass(std::make_shared<gua::TriMeshPassDescription>());
-
-    plod_pass->mode(surfel_render_mode);
-    plod_pass->touch();
+    //plod_pass->mode(surfel_render_mode);
+    //plod_pass->touch();
     blending_halftoning_pipe->add_pass(plod_pass);
-
-    //blending_halftoning_pipe->add_pass(std::make_shared<gua::PLodPassDescription>());
+    blending_halftoning_pipe->add_pass(std::make_shared<gua::PLodPassDescription>());
     blending_halftoning_pipe->add_pass(std::make_shared<gua::LightVisibilityPassDescription>());
     blending_halftoning_pipe->add_pass(std::make_shared<gua::ResolvePassDescription>()); 
     blending_halftoning_pipe->add_pass(std::make_shared<gua::NprTestPassDescription>());
@@ -153,15 +154,60 @@ auto plod_pass = std::make_shared<gua::PLodPassDescription>();
     blending_halftoning_pipe->add_pass(std::make_shared<gua::NprOutlinePassDescription>());
     blending_halftoning_pipe->get_npr_outline_pass()->halftoning(true);
     blending_halftoning_pipe->get_npr_outline_pass()->apply_outline(false);
-    blending_halftoning_pipe->get_npr_outline_pass()->store_for_blending(false);
+    //blending_halftoning_pipe->get_npr_outline_pass()->store_for_blending(false);
     blending_halftoning_pipe->get_npr_outline_pass()->no_color(false);
 
     blending_halftoning_pipe->get_npr_outline_pass()->store_for_blending(true);
     blending_halftoning_pipe->add_pass(std::make_shared<gua::NprBlendingPassDescription>());
     blending_halftoning_pipe->get_npr_screen_blending_pass()->focus_appearance(true);
+    blending_halftoning_pipe->add_pass(std::make_shared<gua::DebugViewPassDescription>());
 
     blending_outline_pipe = std::make_shared<gua::PipelineDescription>();
+      blending_outline_pipe = std::make_shared<gua::PipelineDescription>();
+    blending_outline_pipe->clear();
+    blending_outline_pipe->add_pass(std::make_shared<gua::TriMeshPassDescription>());
+    //plod_pass->mode(surfel_render_mode);
+    //plod_pass->touch();
+    blending_outline_pipe->add_pass(plod_pass);
+    blending_outline_pipe->add_pass(std::make_shared<gua::PLodPassDescription>());
+    blending_outline_pipe->add_pass(std::make_shared<gua::LightVisibilityPassDescription>());
+    blending_outline_pipe->add_pass(std::make_shared<gua::ResolvePassDescription>()); 
+    blending_outline_pipe->add_pass(std::make_shared<gua::NprTestPassDescription>());
+    blending_outline_pipe->get_npr_test_pass()->sphere_radius(test_sphere_radius);
+    blending_outline_pipe->add_pass(std::make_shared<gua::NprOutlinePassDescription>());
+    blending_outline_pipe->get_npr_outline_pass()->halftoning(false);
+    blending_outline_pipe->get_npr_outline_pass()->apply_outline(true);
+    //blending_halftoning_pipe->get_npr_outline_pass()->store_for_blending(false);
+    blending_outline_pipe->get_npr_outline_pass()->no_color(false);
+    blending_outline_pipe->get_npr_outline_pass()->store_for_blending(true);
+    blending_outline_pipe->add_pass(std::make_shared<gua::NprBlendingPassDescription>());
+    blending_outline_pipe->get_npr_screen_blending_pass()->focus_appearance(true);
+    blending_outline_pipe->add_pass(std::make_shared<gua::DebugViewPassDescription>());*/
+
+
     bilateral_outline_pipe = std::make_shared<gua::PipelineDescription>();
+    bilateral_outline_pipe->clear();
+    bilateral_outline_pipe->add_pass(std::make_shared<gua::TriMeshPassDescription>());
+    bilateral_outline_pipe->add_pass(std::make_shared<gua::PLodPassDescription>());
+    bilateral_outline_pipe->add_pass(std::make_shared<gua::LightVisibilityPassDescription>());
+    bilateral_outline_pipe->add_pass(std::make_shared<gua::ToonResolvePassDescription>()); 
+    bilateral_outline_pipe->get_toon_resolve_pass()->enable_gooch_shading(false);
+    bilateral_outline_pipe->add_pass(std::make_shared<gua::NPREffectPassDescription>());
+    bilateral_outline_pipe->add_pass(std::make_shared<gua::NPREffectPassDescription>());
+    bilateral_outline_pipe->add_pass(std::make_shared<gua::NPREffectPassDescription>());
+    bilateral_outline_pipe->add_pass(std::make_shared<gua::NPREffectPassDescription>());
+    bilateral_outline_pipe->add_pass(std::make_shared<gua::NPREffectPassDescription>());
+    bilateral_outline_pipe->add_pass(std::make_shared<gua::NPREffectPassDescription>());
+    bilateral_outline_pipe->add_pass(std::make_shared<gua::NPREffectPassDescription>());
+    bilateral_outline_pipe->add_pass(std::make_shared<gua::NPREffectPassDescription>());
+    bilateral_outline_pipe->add_pass(std::make_shared<gua::NPREffectPassDescription>());
+    bilateral_outline_pipe->add_pass(std::make_shared<gua::NPREffectPassDescription>());
+    bilateral_outline_pipe->add_pass(std::make_shared<gua::NPREffectPassDescription>());
+    bilateral_outline_pipe->add_pass(std::make_shared<gua::NPREffectPassDescription>());
+    bilateral_outline_pipe->add_pass(std::make_shared<gua::NprOutlinePassDescription>());
+    bilateral_outline_pipe->get_npr_outline_pass()->halftoning(false);
+    bilateral_outline_pipe->get_npr_outline_pass()->apply_outline(true);
+    bilateral_outline_pipe->get_npr_outline_pass()->no_color(false);
 
     current_pipe = no_effects_pipe;
   }
@@ -272,7 +318,7 @@ void rebuild_pipe(gua::PipelineDescription& pipe) {
   }
 
   //pipe.add_pass(std::make_shared<gua::BBoxPassDescription>());
-  //pipe.add_pass(std::make_shared<gua::DebugViewPassDescription>());
+  pipe.add_pass(std::make_shared<gua::DebugViewPassDescription>());
   //pipe.add_pass(std::make_shared<gua::SSAAPassDescription>());
 }
 
@@ -286,7 +332,7 @@ void key_press(gua::PipelineDescription& pipe,
 			   int mods){
   //std::cout << scancode << "scancode\n";
   
-    current_pipe = halftoning_pipe;
+    //current_pipe = halftoning_pipe;
     auto camera_vec = graph.get_camera_nodes();
 
   if(9 == scancode){ //'Esc'
@@ -405,8 +451,8 @@ void key_press(gua::PipelineDescription& pipe,
     
     //halftoning mode - screenspace pass
     case 'h':
-       /* apply_halftoning_effect = !apply_halftoning_effect;
-        rebuild_pipe(pipe);*/
+        apply_halftoning_effect = !apply_halftoning_effect;
+       // rebuild_pipe(pipe);
       break;
 
     //toogle outlines - screenspace pass
@@ -423,12 +469,12 @@ void key_press(gua::PipelineDescription& pipe,
 
     //toogle test visualization
     case 't':
-        /*apply_test_demo = !apply_test_demo;
+        apply_test_demo = !apply_test_demo;
         apply_blending = !apply_blending;
 
         //create_screenspace_outlines = !create_screenspace_outlines;;
         
-        rebuild_pipe(pipe);*/
+        //rebuild_pipe(pipe);
       break;
     //decrease blending sphere radius
     case 'n':
@@ -436,7 +482,7 @@ void key_press(gua::PipelineDescription& pipe,
           test_sphere_radius -= 0.005f;
           //pipe.get_npr_test_pass()->sphere_radius(test_sphere_radius);
           //std::cout << "test_sphere_radius: " << test_sphere_radius << "\n"; 
-          blending_halftoning_pipe->get_npr_test_pass()->sphere_radius(test_sphere_radius);
+          //blending_halftoning_pipe->get_npr_test_pass()->sphere_radius(test_sphere_radius);
         }
       break;
     //increase blending sphere radius
@@ -444,7 +490,8 @@ void key_press(gua::PipelineDescription& pipe,
         if(test_sphere_radius <= 0.95f /*&& apply_test_demo*/){
           test_sphere_radius += 0.05f;
           //pipe.get_npr_test_pass()->sphere_radius(test_sphere_radius);
-          blending_halftoning_pipe->get_npr_test_pass()->sphere_radius(test_sphere_radius);
+          //blending_halftoning_pipe->get_npr_test_pass()->sphere_radius(test_sphere_radius);
+          //blending_halftoning_pipe->get_npr_screen_blending_pass()->touch();
         }
       break;
 
@@ -493,15 +540,6 @@ void key_press(gua::PipelineDescription& pipe,
           camera_vec[0]->set_pipeline_description(current_pipe);
         break;
       case '5':
-          current_pipe = blending_halftoning_pipe;
-          current_pipe->get_npr_test_pass()->touch();
-          camera_vec[0]->set_pipeline_description(current_pipe);
-        break;
-      case '6':
-          current_pipe = blending_outline_pipe;
-          camera_vec[0]->set_pipeline_description(blending_outline_pipe);
-        break;
-      case '7':
           current_pipe = bilateral_outline_pipe;
           camera_vec[0]->set_pipeline_description(bilateral_outline_pipe);
         break;
@@ -621,7 +659,7 @@ int main(int argc, char** argv) {
 
   gua::TriMeshLoader   trimesh_loader;
   auto ring_geometry(trimesh_loader.create_geometry_from_file(
-                "ring", "/mnt/pitoti/MA_MK/Test_files/0_kopf_local_d8_l12_nonDbscan_demo.obj", //"/home/vajo3185/Programming/lamure/install/bin/Bvh_Lod_files/pig_pr_d8_l14_dbscan_nurbs.obj", //"/home/vajo3185/Programming/lamure/install/bin/Bvh_Lod_files/pig_pr_d5_l14_nurbs_eps05.obj", //"/home/vajo3185/Programming/lamure/install/bin/Bvh_Lod_files/pig_pr_d9_l18.obj", //"data/objects/wired_icosphere.obj", // "data/objects/dashed_ring_1b025.obj", 
+                "ring", "/mnt/pitoti/MA_MK/Test_files/0_kopf_local_d5_l25_sampled40p.obj",//"/mnt/pitoti/MA_MK/Test_files/0_kopf_local_d8_l12_nonDbscan_demo.obj", //"/home/vajo3185/Programming/lamure/install/bin/Bvh_Lod_files/pig_pr_d8_l14_dbscan_nurbs.obj", //"/home/vajo3185/Programming/lamure/install/bin/Bvh_Lod_files/pig_pr_d5_l14_nurbs_eps05.obj", //"/home/vajo3185/Programming/lamure/install/bin/Bvh_Lod_files/pig_pr_d9_l18.obj", //"data/objects/wired_icosphere.obj", // "data/objects/dashed_ring_1b025.obj", 
                 gua::TriMeshLoader::NORMALIZE_POSITION |
                 gua::TriMeshLoader::NORMALIZE_SCALE )); 
 
@@ -788,7 +826,7 @@ int main(int argc, char** argv) {
 
   //add pipeline with rendering passes
   auto pipe = std::make_shared<gua::PipelineDescription>();
-  /*rebuild_pipe(*pipe);*/
+  rebuild_pipe(*pipe);
 
   camera->set_pipeline_description(current_pipe);
 
@@ -964,7 +1002,16 @@ int main(int argc, char** argv) {
               gua::math::vec3d translation_vec = gua::math::get_translation(lense_translation_node->get_transform());
               //pipe->get_npr_test_pass()->sphere_location((gua::math::vec3f)translation_vec);
               //pipe->get_npr_screen_blending_pass()->focus_appearance(npr_focus);
-              blending_halftoning_pipe->get_npr_test_pass()->sphere_location((gua::math::vec3f)translation_vec);
+              if(current_pipe == blending_halftoning_pipe){
+                current_pipe->get_npr_test_pass()->sphere_location((gua::math::vec3f)translation_vec);
+                //camera->set_pipeline_description(current_pipe);
+              }
+              //current_pipe->get_npr_test_pass()->sphere_location((gua::math::vec3f)translation_vec);
+
+             /* blending_halftoning_pipe->get_npr_screen_blending_pass()->focus_appearance(true);
+              blending_halftoning_pipe->get_npr_test_pass()->sphere_radius(test_sphere_radius);
+              blending_halftoning_pipe->get_npr_screen_blending_pass()->touch();
+              blending_halftoning_pipe->get_npr_test_pass()->touch();*/
             }
           }
           else{
@@ -980,7 +1027,7 @@ int main(int argc, char** argv) {
                                                                               intersection.second.y, 
                                                                               intersection.second.z));
             if(apply_test_demo){
-              //pipe->get_npr_test_pass()->sphere_location((gua::math::vec3f)intersection.second);
+              pipe->get_npr_test_pass()->sphere_location((gua::math::vec3f)intersection.second);
               blending_halftoning_pipe->get_npr_test_pass()->sphere_location((gua::math::vec3f)intersection.second);
             }
           }
