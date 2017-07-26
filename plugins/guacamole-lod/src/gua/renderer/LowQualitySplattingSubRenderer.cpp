@@ -184,8 +184,8 @@ namespace gua {
     // gua::Texture("data/textures/colored_grid.png");
     //auto& target = *pipe.current_viewstate().target; 
     //ToMe: get_normal_buffer() returns std::shared_ptr<Texture2D>
-    auto tex = plod_node->get_texture()->gua::Texture::get_handle(ctx);
-    current_material_shader->apply_uniform(ctx, "gua_in_texture", tex);
+    //auto tex = plod_node->get_texture()->gua::Texture::get_handle(ctx);
+    //current_material_shader->apply_uniform(ctx, "gua_in_texture", tex);
     //tmp
   }
 
