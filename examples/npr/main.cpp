@@ -658,8 +658,34 @@ int main(int argc, char** argv) {
   //snail_material->set_show_back_faces(false);
 
   gua::TriMeshLoader   trimesh_loader;
+
+  auto line_rendering_material_w_back_faces(gua::MaterialShaderDatabase::instance()
+                                ->lookup("gua_default_material")
+                                ->make_new_material());
+
+  line_rendering_material_w_back_faces->set_show_back_faces(true);
+  line_rendering_material_w_back_faces->set_render_wireframe(true);
+  line_rendering_material_w_back_faces->set_uniform("Emissivity", 1.0f);
+  line_rendering_material_w_back_faces->set_uniform("Color", gua::math::vec4f(1.0f, 0.0f, 0.0f, 1.0f) );
+
+  auto line_rendering_material_wo_back_faces(gua::MaterialShaderDatabase::instance()
+                                ->lookup("gua_default_material")
+                                ->make_new_material());
+
+
+//+  gua_emissivity = 1.0;
+//+  gua_color = vec3(0.8, 0.8, 1.0);
+
+
   auto ring_geometry(trimesh_loader.create_geometry_from_file(
-                "ring", "/mnt/pitoti/MA_MK/Test_files/0_kopf_local_d5_l25_sampled40p.obj",//"/mnt/pitoti/MA_MK/Test_files/0_kopf_local_d8_l12_nonDbscan_demo.obj", //"/home/vajo3185/Programming/lamure/install/bin/Bvh_Lod_files/pig_pr_d8_l14_dbscan_nurbs.obj", //"/home/vajo3185/Programming/lamure/install/bin/Bvh_Lod_files/pig_pr_d5_l14_nurbs_eps05.obj", //"/home/vajo3185/Programming/lamure/install/bin/Bvh_Lod_files/pig_pr_d9_l18.obj", //"data/objects/wired_icosphere.obj", // "data/objects/dashed_ring_1b025.obj", 
+                "ring",
+                "/home/vajo3185/Programming/lamure/install/bin/90_x_0_kopf_local_d11_l32.obj",
+                //"/home/vajo3185/Programming/lamure/install/bin/0_kopf_local_d14_l34.obj",
+               // "/home/vajo3185/Programming/lamure/install/bin/0_kopf_local_d11_l34.obj", 
+                //"/home/vajo3185/Programming/lamure/install/bin/0_kopf_local_d16_l34.obj", 
+
+                //"/home/vajo3185/Programming/lamure/install/bin/pig_pr_d9_l32.obj", // "/mnt/pitoti/MA_MK/Test_files/0_kopf_local_d5_l25_sampled40p.obj",//"/mnt/pitoti/MA_MK/Test_files/0_kopf_local_d8_l12_nonDbscan_demo.obj", //"/home/vajo3185/Programming/lamure/install/bin/Bvh_Lod_files/pig_pr_d8_l14_dbscan_nurbs.obj", //"/home/vajo3185/Programming/lamure/install/bin/Bvh_Lod_files/pig_pr_d5_l14_nurbs_eps05.obj", //"/home/vajo3185/Programming/lamure/install/bin/Bvh_Lod_files/pig_pr_d9_l18.obj", //"data/objects/wired_icosphere.obj", // "data/objects/dashed_ring_1b025.obj", 
+                line_rendering_material_w_back_faces,
                 gua::TriMeshLoader::NORMALIZE_POSITION |
                 gua::TriMeshLoader::NORMALIZE_SCALE )); 
 

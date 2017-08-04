@@ -22,6 +22,7 @@ IF (GUACAMOLE_EXAMPLES)
 
   if(${PLUGIN_guacamole-lod} AND ${GUACAMOLE_FBX} AND ${GUACAMOLE_GLFW3})
     add_subdirectory(npr)
+    add_subdirectory(plane_orientation)
   endif(${PLUGIN_guacamole-lod} AND ${GUACAMOLE_FBX} AND ${GUACAMOLE_GLFW3})
 
   # nurbs example requires GLFW3 and nurbs-plugin

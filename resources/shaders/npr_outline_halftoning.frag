@@ -73,12 +73,12 @@ void main() {
       vec2 tmp_texcoord = vec2( (gl_FragCoord.x + r) / gua_resolution.x, 
                                 (gl_FragCoord.y + c) / gua_resolution.y );
 
-      //accumulated_color_x += sobel_x[r +1][c +1]* get_linearized_depth(tmp_texcoord);   //for toon shading also color_map look up gives good results
-      //accumulated_color_y += sobel_y[r +1][c +1]* get_linearized_depth(tmp_texcoord); 
+      accumulated_color_x += sobel_x[r +1][c +1]* get_linearized_depth(tmp_texcoord);   //for toon shading also color_map look up gives good results
+      accumulated_color_y += sobel_y[r +1][c +1]* get_linearized_depth(tmp_texcoord); 
       
       //TODO: outlines from normal map produce artifacts?
-      accumulated_color_x += sobel_x[r +1][c +1] * gua_get_normal(tmp_texcoord);  
-      accumulated_color_y += sobel_y[r +1][c +1] * gua_get_normal(tmp_texcoord);
+      //accumulated_color_x += sobel_x[r +1][c +1] * gua_get_normal(tmp_texcoord);  
+      //accumulated_color_y += sobel_y[r +1][c +1] * gua_get_normal(tmp_texcoord);
       
       //accumulated_color_x += sobel_x[r +1][c +1]* gua_get_color(tmp_texcoord); 
       //accumulated_color_y += sobel_y[r +1][c +1]* gua_get_color(tmp_texcoord);
@@ -91,8 +91,8 @@ void main() {
 
 
   float depth = gua_get_depth();
-  float outline_treshhold = 1.3; //TODO meaning of the value?! 
-  float color_scale_var = 6.0; //color discritisation value
+  float outline_treshhold = 0.03; //TODO meaning of the value?! 
+  float color_scale_var = 2.0; //color discritisation value
   int kernel_size = 4; //changes the size repeated pattern grid; influences the showerdoor effect; should correspond to dither_mat dimensions
 
   if(depth < 1){ //check for background
@@ -121,7 +121,7 @@ void main() {
     else if(apply_outline) { //Outline effect is enabled 
 
       if(dot(edge_color, vec3(1) ) >= outline_treshhold) {
-          out_color = vec3(0.03, 0.7, 0.2); //outline color 
+          out_color = vec3(0.0, 0.0, 0.0); //outline color 
       }
       else{
         if(no_color){
@@ -134,7 +134,7 @@ void main() {
     }
   }
   else {//background color 
-    out_color =   vec3(0.9, 1.0, 1.0); //gua_get_color(texcoord); 
+    out_color =   vec3(0.1, 0.1, 0.1); //gua_get_color(texcoord); 
   } 
 
   /*if(depth < 1){ //check for background
