@@ -19,43 +19,29 @@
  *                                                                            *
  ******************************************************************************/
 
-#ifndef GUA_TRIMESH_RENDERER_HPP
-#define GUA_TRIMESH_RENDERER_HPP
+#ifndef GUA_SLELETAL_ANIMATION_PASS_HPP
+#define GUA_SLELETAL_ANIMATION_PASS_HPP
 
-#include <map>
-#include <unordered_map>
+// guacamole headers
+#include <gua/skelanim/platform.hpp>
+#include <gua/renderer/PipelinePass.hpp>
 
-#include <gua/platform.hpp>
-#include <gua/renderer/ShaderProgram.hpp>
-
-#include <scm/gl_core/shader_objects.h>
+// external headers
+#include <scm/gl_core/buffer_objects.h>
 
 namespace gua {
 
-class MaterialShader;
-class Pipeline;
-class PipelinePassDescription;
-
-class TriMeshRenderer {
-
+  class GUA_SKELANIM_DLL SkeletalAnimationPassDescription
+    : public PipelinePassDescription {
  public:
+  SkeletalAnimationPassDescription();
+  std::shared_ptr<PipelinePassDescription> make_copy() const override;
+  friend class Pipeline;
 
-  TriMeshRenderer(RenderContext const& ctx, SubstitutionMap const& smap);
-
-  void render(Pipeline& pipe, PipelinePassDescription const& desc);
-
- private:
-
-  scm::gl::rasterizer_state_ptr                                       rs_cull_back_;
-  scm::gl::rasterizer_state_ptr                                       rs_cull_none_;
-  scm::gl::rasterizer_state_ptr                                       rs_wireframe_cull_back_;
-  scm::gl::rasterizer_state_ptr                                       rs_wireframe_cull_none_;
-
-  std::vector<ShaderProgramStage>                                     program_stages_;
-  std::unordered_map<MaterialShader*, std::shared_ptr<ShaderProgram>> programs_;
-  SubstitutionMap                                                     global_substitution_map_;
+ protected:
+  PipelinePass make_pass(RenderContext const&, SubstitutionMap&) override;
 };
 
 }
 
-#endif  // GUA_TRIMESH_RENDERER_HPP
+#endif  // GUA_SLELETAL_ANIMATION_PASS_HPP

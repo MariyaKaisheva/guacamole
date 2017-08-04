@@ -19,43 +19,47 @@
  *                                                                            *
  ******************************************************************************/
 
-#ifndef GUA_TRIMESH_RENDERER_HPP
-#define GUA_TRIMESH_RENDERER_HPP
+#ifndef GUA_BONEPOSE_HPP
+#define GUA_BONEPOSE_HPP
 
-#include <map>
-#include <unordered_map>
+#include <gua/skelanim/platform.hpp>
 
-#include <gua/platform.hpp>
-#include <gua/renderer/ShaderProgram.hpp>
-
-#include <scm/gl_core/shader_objects.h>
+// external headers
+#include <scm/gl_core.h>
+#include <scm/core/math/quat.h>
 
 namespace gua {
 
-class MaterialShader;
-class Pipeline;
-class PipelinePassDescription;
-
-class TriMeshRenderer {
-
+/**
+ * @brief holds transformation of bone
+ * @details can be blended with another bone pose
+ */
+struct GUA_SKELANIM_DLL BonePose {
  public:
+  BonePose();
 
-  TriMeshRenderer(RenderContext const& ctx, SubstitutionMap const& smap);
+  BonePose(scm::math::vec3f const& scale,
+           scm::math::quatf const& rotate,
+           scm::math::vec3f const& translate);
 
-  void render(Pipeline& pipe, PipelinePassDescription const& desc);
+  ~BonePose();
+
+  scm::math::mat4f to_matrix() const;
+
+  BonePose blend(BonePose const& t, float const factor) const;
+
+  BonePose operator+(BonePose const& t) const;
+  BonePose& operator+=(BonePose const& t);
+
+  BonePose operator*(float const factor) const;
+  BonePose& operator*=(float const f);
 
  private:
-
-  scm::gl::rasterizer_state_ptr                                       rs_cull_back_;
-  scm::gl::rasterizer_state_ptr                                       rs_cull_none_;
-  scm::gl::rasterizer_state_ptr                                       rs_wireframe_cull_back_;
-  scm::gl::rasterizer_state_ptr                                       rs_wireframe_cull_none_;
-
-  std::vector<ShaderProgramStage>                                     program_stages_;
-  std::unordered_map<MaterialShader*, std::shared_ptr<ShaderProgram>> programs_;
-  SubstitutionMap                                                     global_substitution_map_;
+  scm::math::vec3f scaling;
+  scm::math::quatf rotation;
+  scm::math::vec3f translation;
 };
 
 }
 
-#endif  // GUA_TRIMESH_RENDERER_HPP
+#endif  //GUA_BONEPOSE_HPP

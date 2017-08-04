@@ -19,43 +19,66 @@
  *                                                                            *
  ******************************************************************************/
 
-#ifndef GUA_TRIMESH_RENDERER_HPP
-#define GUA_TRIMESH_RENDERER_HPP
+#ifndef GUA_SKELETAL_ANIMATION_HPP
+#define GUA_SKELETAL_ANIMATION_HPP
 
-#include <map>
-#include <unordered_map>
+// guacamole headers
+#include <gua/config.hpp>
+#include <gua/utils/fbxfwd.hpp>
+#include <gua/skelanim/utils/BoneAnimation.hpp>
+#include <gua/skelanim/platform.hpp>
+ 
+// external headers
+#include <vector>
+#include <string>
 
-#include <gua/platform.hpp>
-#include <gua/renderer/ShaderProgram.hpp>
-
-#include <scm/gl_core/shader_objects.h>
+struct aiAnimation;
 
 namespace gua {
+class SkeletalPose;
 
-class MaterialShader;
-class Pipeline;
-class PipelinePassDescription;
-
-class TriMeshRenderer {
-
+/**
+ * @brief holds bone animations for one animation
+ */
+class GUA_SKELANIM_DLL SkeletalAnimation {
  public:
+  SkeletalAnimation();
 
-  TriMeshRenderer(RenderContext const& ctx, SubstitutionMap const& smap);
+  SkeletalAnimation(aiAnimation const& anim, std::string const& name = "");
+#ifdef GUACAMOLE_FBX
+  SkeletalAnimation(FbxAnimStack* anim,
+                    std::vector<FbxNode*> const& bones,
+                    std::string const& name = "");
+#endif
+  ~SkeletalAnimation();
 
-  void render(Pipeline& pipe, PipelinePassDescription const& desc);
+  /**
+   * @brief calculates skelpose from this anim
+   * @details calculates the pose at the given time
+   * 
+   * @param time time for which to calculate pose
+   * @return SkeletalPose at given time
+   */
+  SkeletalPose calculate_pose(float time) const;
+
+  /**
+   * @brief returns anim duration
+   * @return duration in seconds
+   */
+  double get_duration() const;
+
+  std::string const& get_name() const;
 
  private:
+  std::string name;
+  unsigned numFrames;
+  double numFPS;
+  double duration;
+  unsigned numBoneAnims;
 
-  scm::gl::rasterizer_state_ptr                                       rs_cull_back_;
-  scm::gl::rasterizer_state_ptr                                       rs_cull_none_;
-  scm::gl::rasterizer_state_ptr                                       rs_wireframe_cull_back_;
-  scm::gl::rasterizer_state_ptr                                       rs_wireframe_cull_none_;
-
-  std::vector<ShaderProgramStage>                                     program_stages_;
-  std::unordered_map<MaterialShader*, std::shared_ptr<ShaderProgram>> programs_;
-  SubstitutionMap                                                     global_substitution_map_;
+  std::vector<BoneAnimation> boneAnims;
 };
 
 }
 
-#endif  // GUA_TRIMESH_RENDERER_HPP
+#endif  //GUA_SKELETAL_ANIMATION_HPP
