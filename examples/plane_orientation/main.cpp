@@ -71,7 +71,7 @@ std::set<std::string> model_filenames;
 float error_threshold = 3.7f; //for point cloud models
 float radius_scale = 0.7f;  //for point cloud models
 
-std::string scenegraph_path = "/scene_root/model_translation/model_rotation/model_scaling/geometry_root";
+std::string plod_geometry_parent = "/model_translation/model_rotation/model_scaling/geometry_root";
 
 float test_sphere_radius = 0.25f;
 auto plod_pass = std::make_shared<gua::PLodPassDescription>();
@@ -110,12 +110,11 @@ void mouse_button(gua::utils::Trackball& trackball,
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-void toogle_visibility(gua::SceneGraph const& graph){
-    auto all_geometry_nodes = graph[scenegraph_path]->get_children();
+void toggle_visibility(gua::SceneGraph const& graph){
+    auto all_geometry_nodes = graph[plod_geometry_parent]->get_children();
     uint8_t num_models = all_geometry_nodes.size();
     for(uint8_t node_index  = 0; node_index < num_models; ++node_index){
       auto& node = all_geometry_nodes[node_index];
-
       if(!node->get_tags().has_tag("invisible")){
         //hide currently visible model
         node->get_tags().add_tag("invisible");
@@ -132,7 +131,8 @@ void toogle_visibility(gua::SceneGraph const& graph){
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void write_rot_mat (gua::SceneGraph const& graph){
-  auto rot_mat =  gua::math::get_rotation(graph["/scene_root/plane_translation/plane_rotation_offset/plane_rotation"]->get_transform());
+  std::string path_to_plane_rot_node = "/model_translation/model_rotation/model_scaling/plane_root/plane_translation/plane_rotation";
+  auto rot_mat =  gua::math::get_rotation(graph[path_to_plane_rot_node]->get_transform());
   std::cout << rot_mat << std::endl; 
   scm::math::quat<double> output_quat;
   output_quat = scm::math::quat<double>::from_matrix(rot_mat);
@@ -143,7 +143,7 @@ void write_rot_mat (gua::SceneGraph const& graph){
   std::cout << "axis:  " << axis.x << " " << axis.y << " " << axis.z << std::endl;
 
   std::string  model_name;
-  auto all_geometry_nodes = graph[scenegraph_path]->get_children();
+  auto all_geometry_nodes = graph[plod_geometry_parent]->get_children();
   for(auto& node : all_geometry_nodes){
     if(!node->get_tags().has_tag("invisible")){
       model_name = node->get_name();
@@ -172,7 +172,7 @@ void write_rot_mat (gua::SceneGraph const& graph){
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void scale_scene (double zoom_factor, gua::SceneGraph& graph){
   auto scaling_mat = scm::math::make_scale(zoom_factor, zoom_factor, zoom_factor);
-  graph["/scene_root/model_translation/model_rotation/model_scaling"]->set_transform(scaling_mat);
+  graph["/model_translation/model_rotation/model_scaling"]->set_transform(scaling_mat);
 }
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void build_pipe (gua::PipelineDescription& pipe){
@@ -203,13 +203,13 @@ void key_press(gua::PipelineDescription& pipe,
     reset_scene_position = true;
   }
 
-  //toogle what geometry is manipulated by the tracked cubic probe
+  //toggle what geometry is manipulated by the tracked cubic probe
   //switches between scene geometry and slicing plane
   if(65 == scancode && action == 1){ //'Spacebar'
     manipulate_scene_geometry = !manipulate_scene_geometry;
   }
 
-  //toogle linked position tracking (model & slicing plane moving together or not)
+  //toggle linked position tracking (model & slicing plane moving together or not)
   if(39 == scancode && action == 1){ //'s'
     snap_plane_to_model = !snap_plane_to_model;
   }
@@ -265,9 +265,9 @@ void key_press(gua::PipelineDescription& pipe,
       write_rot_mat(graph);
       break;
 
-    //toogle visibility of Plod models 
+    //toggle visibility of Plod models 
     case 'q': 
-      toogle_visibility(graph);
+      toggle_visibility(graph);
       break;
 
 
@@ -323,14 +323,15 @@ void add_models_to_graph(std::vector<std::string> const& model_files,
     std::string model_filename_without_path = model.substr(model.find_last_of("/\\") + 1); 
     std::string model_filename_without_path_and_extension = model_filename_without_path.substr(0, model_filename_without_path.size() - 4);
     plod_node->set_name(model_filename_without_path_and_extension);
-    graph.add_node(scenegraph_path, plod_node); 
+    graph.add_node(plod_geometry_parent, plod_node); 
     scene_bounding_boxes.push_back(plod_node->get_bounding_box()); 
     plod_node->set_draw_bounding_box(true);
-
     model_filenames.insert(model);
   }
    
-    auto all_geometry_nodes = graph[scenegraph_path]->get_children();
+    auto all_geometry_nodes = graph[plod_geometry_parent]->get_children();
+
+    //first: flag all geometry nodes invisible
     for(auto& node : all_geometry_nodes){
 
       auto scene_bbox = node->get_bounding_box();
@@ -343,10 +344,13 @@ void add_models_to_graph(std::vector<std::string> const& model_files,
       node->scale(scaling_factor);
       node->set_draw_bounding_box(true);
       node->get_tags().add_tag("invisible");
+
     }
+
+    //then: remove invisibility flag from first geometry node 
     all_geometry_nodes[0]->get_tags().remove_tag("invisible");
-    
-   graph[scenegraph_path]->set_draw_bounding_box(true);   
+
+    graph[plod_geometry_parent]->set_draw_bounding_box(true);   
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -358,11 +362,12 @@ int main(int argc, char** argv) {
 
 	//setup scene ////////////////////////////////////
 	gua::SceneGraph graph("main_scenegraph");
-  auto scene_root_node = graph.add_node<gua::node::TransformNode>("/", "scene_root");
-  auto model_translation_node = graph.add_node<gua::node::TransformNode>("/scene_root", "model_translation");
-  auto model_rotation_node = graph.add_node<gua::node::TransformNode>("/scene_root/model_translation", "model_rotation");
-  auto model_scaling_node = graph.add_node<gua::node::TransformNode>("/scene_root/model_translation/model_rotation", "model_scaling");
-	auto geometry_root = graph.add_node<gua::node::TransformNode>("/scene_root/model_translation/model_rotation/model_scaling", "geometry_root");
+  //auto scene_root_node = graph.add_node<gua::node::TransformNode>("/", "scene_root");
+  auto model_translation_node = graph.add_node<gua::node::TransformNode>("/", "model_translation");
+  auto model_rotation_node = graph.add_node<gua::node::TransformNode>(model_translation_node, "model_rotation");
+  auto model_scaling_node = graph.add_node<gua::node::TransformNode>(model_rotation_node, "model_scaling");
+	auto geometry_root = graph.add_node<gua::node::TransformNode>(model_scaling_node, "geometry_root");
+  auto plane_root = graph.add_node<gua::node::TransformNode>(model_scaling_node, "plane_root");
 
   //light source 
 	auto light_pointer = graph.add_node<gua::node::TransformNode>("/", "light_pointer");
@@ -371,11 +376,11 @@ int main(int argc, char** argv) {
 	light_source->data.brightness = 3.0f;
 
   //slicing plane geometry
-  auto plane_translation_node = graph.add_node<gua::node::TransformNode>("/scene_root", "plane_translation");
-  auto plane_rot_offset_node = graph.add_node<gua::node::TransformNode>("/scene_root/plane_translation", "plane_rotation_offset");
-  auto plane_rotation_node = graph.add_node<gua::node::TransformNode>("/scene_root/plane_translation/plane_rotation_offset", "plane_rotation");
-  auto plane_scaling_node = graph.add_node<gua::node::TransformNode>("/scene_root/plane_translation/plane_rotation_offset/plane_rotation", "plane_scaling");
-  auto plane_geometry_root = graph.add_node<gua::node::TransformNode>("/scene_root/plane_translation/plane_rotation_offset/plane_rotation/plane_scaling", "plane_geometry_root");
+  auto plane_translation_node = graph.add_node<gua::node::TransformNode>(plane_root, "plane_translation");
+  //auto plane_rot_offset_node = graph.add_node<gua::node::TransformNode>("/plane_translation", "plane_rotation_offset");
+  auto plane_rotation_node = graph.add_node<gua::node::TransformNode>(plane_translation_node, "plane_rotation");
+  auto plane_scaling_node = graph.add_node<gua::node::TransformNode>(plane_rotation_node, "plane_scaling");
+  auto plane_geometry_root = graph.add_node<gua::node::TransformNode>(plane_scaling_node, "plane_geometry_root");
 
   gua::TriMeshLoader   trimesh_loader;
 
@@ -528,9 +533,9 @@ int main(int argc, char** argv) {
   model_rotation_node->set_transform(initial_scene_rotation_mat);
   model_scaling_node->set_transform(initial_scene_scaling_mat);
 
-  plane_translation_node->set_transform(initial_scene_translation_mat);
-  plane_rot_offset_node->set_transform(initial_scene_rotation_mat);
-  plane_scaling_node->set_transform(initial_scene_scaling_mat);
+  //plane_translation_node->set_transform(initial_scene_translation_mat);
+  //plane_rot_offset_node->set_transform(initial_scene_rotation_mat);
+  //plane_scaling_node->set_transform(initial_scene_scaling_mat);
 
   graph.add_node(plane_geometry_root, plane_geometry);
  
@@ -593,7 +598,7 @@ int main(int argc, char** argv) {
 	//tracking //////////////////////////////////////
 	#if TRACKING_ENABLED
 	  gua::math::mat4 current_cam_tracking_matrix(gua::math::mat4::identity());
-    gua::math::mat4 current_ray_tracking_matrix(gua::math::mat4::identity());
+    //gua::math::mat4 current_ray_tracking_matrix(gua::math::mat4::identity());
 
 	  std::thread tracking_thread([&]() {
       scm::inp::tracker::target_container targets;
@@ -620,11 +625,11 @@ int main(int argc, char** argv) {
         scene_root_target[14] /= 1000.f;
         current_probe_tracking_matrix = scene_root_target;
 
-        auto ray_origin_target = targets.find(17)->second.transform();
+        /*auto ray_origin_target = targets.find(17)->second.transform();
         ray_origin_target[12] /= 1000.f; 
         ray_origin_target[13] /= 1000.f; 
         ray_origin_target[14] /= 1000.f;
-        current_ray_tracking_matrix = ray_origin_target;
+        current_ray_tracking_matrix = ray_origin_target;*/
       }
     });
 	#endif
@@ -656,7 +661,7 @@ int main(int argc, char** argv) {
           auto current_probe_translation_mat = scm::math::make_translation(current_probe_tracking_matrix[12], current_probe_tracking_matrix[13], current_probe_tracking_matrix[14]);
 
           if(!trackball.get_left_button_press_state()){   
-            if(manipulate_scene_geometry)  {
+            if(snap_plane_to_model)  {
               initial_rotation_in_tracking_space_coordinates = scm::math::inverse(current_probe_rotation_mat)*(model_rotation_node->get_transform());  
               initial_translation_in_tracking_space_coordinates = scm::math::inverse(current_probe_translation_mat)*(model_translation_node->get_transform());
            }
@@ -670,22 +675,18 @@ int main(int argc, char** argv) {
             auto rotation_mat = current_probe_rotation_mat*initial_rotation_in_tracking_space_coordinates;
             auto translation_mat = current_probe_translation_mat*initial_translation_in_tracking_space_coordinates;
             if(snap_plane_to_model){
-              scene_root_node->set_transform(rotation_mat);
-            }else{
-              if(manipulate_scene_geometry){
                 model_translation_node->set_transform(translation_mat);
                 model_rotation_node->set_transform(rotation_mat);
-              }
-              else {
+
+            }else{
+
                 plane_translation_node->set_transform(translation_mat);
                 plane_rotation_node->set_transform(rotation_mat);
-
-              }
             }
           }
 
           if(reset_scene_position){
-            scene_root_node->set_transform(gua::math::mat4::identity());
+            //scene_root_node->set_transform(gua::math::mat4::identity());
             if(manipulate_scene_geometry){
               model_translation_node->set_transform(initial_scene_translation_mat);
               model_rotation_node->set_transform(initial_scene_rotation_mat);
@@ -694,7 +695,7 @@ int main(int argc, char** argv) {
             }
             else{
               plane_translation_node->set_transform(initial_scene_translation_mat);
-              plane_rot_offset_node->set_transform(initial_scene_rotation_mat);
+              //plane_rot_offset_node->set_transform(initial_scene_rotation_mat);
               plane_rotation_node->set_transform(gua::math::mat4::identity());
             }
             reset_scene_position = false;
@@ -707,14 +708,13 @@ int main(int argc, char** argv) {
             std::dynamic_pointer_cast<gua::node::PLodNode>(geometry_node)->set_cut_dispatch(freeze_cut_update);
             std::dynamic_pointer_cast<gua::node::PLodNode>(geometry_node)->set_error_threshold(error_threshold);
             std::dynamic_pointer_cast<gua::node::PLodNode>(geometry_node)->set_radius_scale(radius_scale);
-
           }
 
           if(show_lense == false){
-            graph["/scene_root/plane_translation/plane_rotation_offset/plane_rotation/plane_scaling/plane_geometry_root"]->get_tags().add_tag("invisible");
+            plane_geometry_root->get_tags().add_tag("invisible");
           }
           else{
-            graph["/scene_root/plane_translation/plane_rotation_offset/plane_rotation/plane_scaling/plane_geometry_root"]->get_tags().remove_tag("invisible");
+            plane_geometry_root->get_tags().remove_tag("invisible");
           }
 
         #else //!USE_SIDE_BY_SIDE || !TRACKING_ENABLED
@@ -724,15 +724,15 @@ int main(int argc, char** argv) {
                                                                   gua::math::float_t(trackball.distance())) * 
                                       gua::math::mat4(trackball.rotation());
         if(snap_plane_to_model){
-          scene_root_node->set_transform(modelmatrix);
+          //scene_root_node->set_transform(modelmatrix);
         }
 
         if(show_lense){
           plane_translation_node->set_transform(modelmatrix);
-          graph["/scene_root/plane_translation/plane_rotation_offset/plane_rotation/plane_scaling/plane_geometry_root"]->get_tags().remove_tag("invisible");
+          plane_geometry_root->get_tags().remove_tag("invisible");
         }else{
           model_translation_node->set_transform(modelmatrix);
-          graph["/scene_root/plane_translation/plane_rotation_offset/plane_rotation/plane_scaling/plane_geometry_root"]->get_tags().add_tag("invisible");
+          plane_geometry_root->get_tags().add_tag("invisible");
         }
         
 
