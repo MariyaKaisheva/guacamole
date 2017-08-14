@@ -153,9 +153,9 @@ void write_rot_mat (gua::SceneGraph const& graph){
 
   std::cout << "model_name: " << model_name << std::endl;
 
-  std::string output_filename = "/mnt/pitoti/MA_MK/rot_mat_files/rot_angle_" 
+  std::string output_filename = "/mnt/pitoti/MA_MK/rot_mat_files/model_" 
                                 + model_name
-                                + "_"
+                                + "_angle_"
                                 + std::to_string(angle) 
                                 + ".rot";
 
@@ -317,12 +317,12 @@ void add_models_to_graph(std::vector<std::string> const& model_files,
                          std::vector<scm::math::mat4f> const& model_transformations){
   gua::LodLoader lod_loader;
 
-  int model_counter = 0;
   for (auto const& model : model_files) {
 
-    std::string node_name = std::to_string(model_counter++);
     auto plod_node = lod_loader.load_lod_pointcloud(model);
-    plod_node->set_name(node_name);
+    std::string model_filename_without_path = model.substr(model.find_last_of("/\\") + 1); 
+    std::string model_filename_without_path_and_extension = model_filename_without_path.substr(0, model_filename_without_path.size() - 4);
+    plod_node->set_name(model_filename_without_path_and_extension);
     graph.add_node(scenegraph_path, plod_node); 
     scene_bounding_boxes.push_back(plod_node->get_bounding_box()); 
     plod_node->set_draw_bounding_box(true);
