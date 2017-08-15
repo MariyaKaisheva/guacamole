@@ -19,6 +19,8 @@
  ******************************************************************************/
 
 
+#include <lamure/npr/core.h>
+
 #include <scm/input/tracking/art_dtrack.h>
 #include <scm/input/tracking/target.h>
 #include <scm/core/math/quat.h>
@@ -188,11 +190,11 @@ void build_pipe (gua::PipelineDescription& pipe){
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //key-board interactions
 void key_press(gua::PipelineDescription& pipe, 
-			   gua::SceneGraph& graph, 
-			   int key,
-			   int scancode, 
-			   int action, 
-			   int mods){
+         gua::SceneGraph& graph, 
+         int key,
+         int scancode, 
+         int action, 
+         int mods){
   //std::cout << scancode << "scancode\n";
  
   if(9 == scancode){ //'Esc'
@@ -215,7 +217,7 @@ void key_press(gua::PipelineDescription& pipe,
   }
 
   if (action == 0) return;
-	switch(std::tolower(key)){
+  switch(std::tolower(key)){
     case '-':
       if(zoom_factor > 0.06){
         zoom_factor -= 0.05;
@@ -286,7 +288,7 @@ void key_press(gua::PipelineDescription& pipe,
   
     default:
       break;
-	}
+  }
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -317,9 +319,24 @@ void add_models_to_graph(std::vector<std::string> const& model_files,
                          std::vector<scm::math::mat4f> const& model_transformations){
   gua::LodLoader lod_loader;
 
+  uint64_t model_idx_counter = 0;
+
   for (auto const& model : model_files) {
 
     auto plod_node = lod_loader.load_lod_pointcloud(model);
+
+    /*if(model_idx_counter < 1){
+      std::cout << "CALLING THE LAMURE LIB FUNCTION\n";
+      float angle = 45.0f;
+      float axis_x  = 0.5;
+      float axis_y  = 0.0;
+      float axis_z  = 0.5;
+      auto rot_mat = scm::math::make_rotation(angle, axis_x, axis_y, axis_z);
+      npr::core::generate_line_art(rot_mat, model, 5, true, true, true, 36);
+      std::cout << "DONE CALLING THE LAMURE LIB FUNCTION\n";    
+    }*/
+
+
     std::string model_filename_without_path = model.substr(model.find_last_of("/\\") + 1); 
     std::string model_filename_without_path_and_extension = model_filename_without_path.substr(0, model_filename_without_path.size() - 4);
     plod_node->set_name(model_filename_without_path_and_extension);
@@ -327,8 +344,12 @@ void add_models_to_graph(std::vector<std::string> const& model_files,
     scene_bounding_boxes.push_back(plod_node->get_bounding_box()); 
     plod_node->set_draw_bounding_box(true);
     model_filenames.insert(model);
+
+
+
+    ++model_idx_counter;
   }
-   
+
     auto all_geometry_nodes = graph[plod_geometry_parent]->get_children();
 
     //first: flag all geometry nodes invisible
@@ -360,20 +381,20 @@ int main(int argc, char** argv) {
   // initialize guacamole
   gua::init(1, argv);
 
-	//setup scene ////////////////////////////////////
-	gua::SceneGraph graph("main_scenegraph");
+  //setup scene ////////////////////////////////////
+  gua::SceneGraph graph("main_scenegraph");
   //auto scene_root_node = graph.add_node<gua::node::TransformNode>("/", "scene_root");
   auto model_translation_node = graph.add_node<gua::node::TransformNode>("/", "model_translation");
   auto model_rotation_node = graph.add_node<gua::node::TransformNode>(model_translation_node, "model_rotation");
   auto model_scaling_node = graph.add_node<gua::node::TransformNode>(model_rotation_node, "model_scaling");
-	auto geometry_root = graph.add_node<gua::node::TransformNode>(model_scaling_node, "geometry_root");
+  auto geometry_root = graph.add_node<gua::node::TransformNode>(model_scaling_node, "geometry_root");
   auto plane_root = graph.add_node<gua::node::TransformNode>(model_scaling_node, "plane_root");
 
   //light source 
-	auto light_pointer = graph.add_node<gua::node::TransformNode>("/", "light_pointer");
-	auto light_source = graph.add_node<gua::node::LightNode>("/light_pointer", "light_source");
-	light_source->data.set_type(gua::node::LightNode::Type::SUN);
-	light_source->data.brightness = 3.0f;
+  auto light_pointer = graph.add_node<gua::node::TransformNode>("/", "light_pointer");
+  auto light_source = graph.add_node<gua::node::LightNode>("/light_pointer", "light_source");
+  light_source->data.set_type(gua::node::LightNode::Type::SUN);
+  light_source->data.brightness = 3.0f;
 
   //slicing plane geometry
   auto plane_translation_node = graph.add_node<gua::node::TransformNode>(plane_root, "plane_translation");
@@ -409,35 +430,35 @@ int main(int argc, char** argv) {
                 gua::TriMeshLoader::NORMALIZE_POSITION |
                 gua::TriMeshLoader::NORMALIZE_SCALE )); 
 
-	//define screen resolution
-	gua::math::vec2ui resolution;
-	#if !USE_LOW_RES_WORKSTATION
-	  resolution = gua::math::vec2ui(2560, 1440);
-	#else
-	  resolution = gua::math::vec2ui(1920, 1080);
-	#endif
+  //define screen resolution
+  gua::math::vec2ui resolution;
+  #if !USE_LOW_RES_WORKSTATION
+    resolution = gua::math::vec2ui(2560, 1440);
+  #else
+    resolution = gua::math::vec2ui(1920, 1080);
+  #endif
 
-	//screen related variables
-	//physical set-up for SBS stereo workstation 
-	//TODO: value assigment from inout file
-	float screen_width = 0.595f;
-	float screen_height = 0.3346f;
-	float screen_center_offset_x = 3.88f;
-	float screen_center_offset_y = 1.3553f;
-	float screen_center_offset_z = -0.49f;
-	float screen_rotation_x = -12.46f;
-	float screen_rotation_y = -90.0f;
-	//float screen_rotation_z = 0.0f;
+  //screen related variables
+  //physical set-up for SBS stereo workstation 
+  //TODO: value assigment from inout file
+  float screen_width = 0.595f;
+  float screen_height = 0.3346f;
+  float screen_center_offset_x = 3.88f;
+  float screen_center_offset_y = 1.3553f;
+  float screen_center_offset_z = -0.49f;
+  float screen_rotation_x = -12.46f;
+  float screen_rotation_y = -90.0f;
+  //float screen_rotation_z = 0.0f;
   float distance_to_screen =  0.6f;
 
-	float eye_dist = 0.06f;
-	float glass_eye_offset = 0.03f;
+  float eye_dist = 0.06f;
+  float glass_eye_offset = 0.03f;
 
   int   window_width = 2560;
   int   window_height = 1440;
 
-	//physical setup of output viewport ///////////////
-	auto screen = graph.add_node<gua::node::ScreenNode>("/", "screen");
+  //physical setup of output viewport ///////////////
+  auto screen = graph.add_node<gua::node::ScreenNode>("/", "screen");
   screen->data.set_size(gua::math::vec2(screen_width, screen_height));
     
   #if USE_SIDE_BY_SIDE 
@@ -449,7 +470,7 @@ int main(int argc, char** argv) {
   //screen->translate(0, 0, -0.6);
   #endif
 
-	//camera configuration ///////////////////////////
+  //camera configuration ///////////////////////////
   #if USE_SIDE_BY_SIDE 
   auto navigation_eye_offset = graph.add_node<gua::node::TransformNode>("/", "eye_offset");
   auto camera = graph.add_node<gua::node::CameraNode>("/eye_offset", "cam");
@@ -459,7 +480,7 @@ int main(int argc, char** argv) {
   auto camera = graph.add_node<gua::node::CameraNode>("/", "cam");
   camera->translate(0.0, 0.0, distance_to_screen);
   #endif
-	#if USE_MONO 
+  #if USE_MONO 
   camera->config.set_enable_stereo(false);
   #else
   camera->config.set_enable_stereo(true);
@@ -520,7 +541,7 @@ int main(int argc, char** argv) {
   auto initial_scene_translation_mat = gua::math::mat4(scm::math::make_translation(screen_center_offset_x, 
                                                                                   screen_center_offset_y, 
                                                                                   screen_center_offset_z));
-  auto initial_scene_rotation_mat = gua::math::mat4(scm::math::make_rotation(-45.0, 1.0, 0.0, 0.0)); 
+  auto initial_scene_rotation_mat = gua::math::mat4(scm::math::make_rotation(0.0, 1.0, 0.0, 0.0)); 
   auto initial_scene_scaling_mat = gua::math::mat4(scm::math::make_scale(1.0, 1.0, 1.0));
   #else
   auto initial_scene_translation_mat = gua::math::mat4(scm::math::make_translation(0.0, 0.0, -0.18));
@@ -546,61 +567,61 @@ int main(int argc, char** argv) {
 
   camera->set_pipeline_description(pipe);
 
-	//add mouse interaction
-	gua::utils::Trackball trackball(0.002, 0.0002, 0.05); 
+  //add mouse interaction
+  gua::utils::Trackball trackball(0.002, 0.0002, 0.05); 
 
-	//window configuration/////////////////////////////
-	auto window = std::make_shared<gua::GlfwWindow>();
-	gua::WindowDatabase::instance()->add("main_window", window);
-	window->config.set_enable_vsync(true);
-	window->config.set_size(resolution);
-	window->config.set_resolution(resolution);
+  //window configuration/////////////////////////////
+  auto window = std::make_shared<gua::GlfwWindow>();
+  gua::WindowDatabase::instance()->add("main_window", window);
+  window->config.set_enable_vsync(true);
+  window->config.set_size(resolution);
+  window->config.set_resolution(resolution);
 
-	window->on_move_cursor.connect([&](gua::math::vec2 const& pos){
-								trackball.motion(pos.x, pos.y);
-							});
-	
-	window->on_button_press.connect(std::bind(mouse_button, 
-			std::ref(trackball),
-			std::placeholders::_1,
-			std::placeholders::_2, 
-			std::placeholders::_3));
+  window->on_move_cursor.connect([&](gua::math::vec2 const& pos){
+                trackball.motion(pos.x, pos.y);
+              });
+  
+  window->on_button_press.connect(std::bind(mouse_button, 
+      std::ref(trackball),
+      std::placeholders::_1,
+      std::placeholders::_2, 
+      std::placeholders::_3));
 
-	window->on_key_press.connect(std::bind(key_press,
-    		std::ref(*(camera->get_pipeline_description())),
-    		std::ref(graph),
-    		std::placeholders::_1,
-    		std::placeholders::_2,
-    		std::placeholders::_3,
-    		std::placeholders::_4));
+  window->on_key_press.connect(std::bind(key_press,
+        std::ref(*(camera->get_pipeline_description())),
+        std::ref(graph),
+        std::placeholders::_1,
+        std::placeholders::_2,
+        std::placeholders::_3,
+        std::placeholders::_4));
 
-	#if USE_SIDE_BY_SIDE
-	  window->config.set_stereo_mode(gua::StereoMode::SIDE_BY_SIDE);
-	  window->config.set_fullscreen_mode(true);
-	  window->config.set_size(gua::math::vec2ui(2*window_width, window_height));
-	  window->config.set_right_position(gua::math::vec2ui(resolution[0], 0));
-	  window->config.set_right_resolution(resolution);
-	  window->config.set_left_position(gua::math::vec2ui(0, 0));
-	  window->config.set_left_resolution(resolution);
-	#endif
+  #if USE_SIDE_BY_SIDE
+    window->config.set_stereo_mode(gua::StereoMode::SIDE_BY_SIDE);
+    window->config.set_fullscreen_mode(true);
+    window->config.set_size(gua::math::vec2ui(2*window_width, window_height));
+    window->config.set_right_position(gua::math::vec2ui(resolution[0], 0));
+    window->config.set_right_resolution(resolution);
+    window->config.set_left_position(gua::math::vec2ui(0, 0));
+    window->config.set_left_resolution(resolution);
+  #endif
 
-	#if USE_ANAGLYPH
-	  window->config.set_stereo_mode(gua::StereoMode::ANAGLYPH_RED_CYAN);
-	#endif
+  #if USE_ANAGLYPH
+    window->config.set_stereo_mode(gua::StereoMode::ANAGLYPH_RED_CYAN);
+  #endif
 
-	#if USE_MONO
-	  window->config.set_stereo_mode(gua::StereoMode::MONO);
-	#endif
+  #if USE_MONO
+    window->config.set_stereo_mode(gua::StereoMode::MONO);
+  #endif
 
-	//add renderer
-	gua::Renderer renderer; 
+  //add renderer
+  gua::Renderer renderer; 
 
-	//tracking //////////////////////////////////////
-	#if TRACKING_ENABLED
-	  gua::math::mat4 current_cam_tracking_matrix(gua::math::mat4::identity());
+  //tracking //////////////////////////////////////
+  #if TRACKING_ENABLED
+    gua::math::mat4 current_cam_tracking_matrix(gua::math::mat4::identity());
     //gua::math::mat4 current_ray_tracking_matrix(gua::math::mat4::identity());
 
-	  std::thread tracking_thread([&]() {
+    std::thread tracking_thread([&]() {
       scm::inp::tracker::target_container targets;
       targets.insert(scm::inp::tracker::target_container::value_type(5, scm::inp::target(5)));
       targets.insert(scm::inp::tracker::target_container::value_type(22, scm::inp::target(22)));
@@ -632,25 +653,25 @@ int main(int argc, char** argv) {
         current_ray_tracking_matrix = ray_origin_target;*/
       }
     });
-	#endif
+  #endif
 
   auto initial_translation_in_tracking_space_coordinates = gua::math::mat4::identity();
   auto initial_rotation_in_tracking_space_coordinates = gua::math::mat4::identity();
   gua::LodLoader lod_loader;
 
-	//application loop //////////////////////////////
-	gua::events::MainLoop loop;
-	double tick_time = 1.0/500.0;
-	gua::events::Ticker ticker(loop, tick_time);
-	ticker.on_tick.connect([&](){
+  //application loop //////////////////////////////
+  gua::events::MainLoop loop;
+  double tick_time = 1.0/500.0;
+  gua::events::Ticker ticker(loop, tick_time);
+  ticker.on_tick.connect([&](){
 
-		//terminate application
-		if (window->should_close() || close_window) {
-			renderer.stop();
-    		window->close();
-    		loop.stop();
-    	}
-    	else {
+    //terminate application
+    if (window->should_close() || close_window) {
+      renderer.stop();
+        window->close();
+        loop.stop();
+      }
+      else {
 
         #if(USE_SIDE_BY_SIDE && TRACKING_ENABLED)
           #if 1
@@ -660,43 +681,59 @@ int main(int argc, char** argv) {
           auto current_probe_rotation_mat = gua::math::get_rotation(current_probe_tracking_matrix);
           auto current_probe_translation_mat = scm::math::make_translation(current_probe_tracking_matrix[12], current_probe_tracking_matrix[13], current_probe_tracking_matrix[14]);
 
-          if(!trackball.get_left_button_press_state()){   
+          if(!trackball.get_left_button_press_state()){//no transformations applied; user doesn't trigger movement
             if(snap_plane_to_model)  {
-              initial_rotation_in_tracking_space_coordinates = scm::math::inverse(current_probe_rotation_mat)*(model_rotation_node->get_transform());  
-              initial_translation_in_tracking_space_coordinates = scm::math::inverse(current_probe_translation_mat)*(model_translation_node->get_transform());
+              initial_rotation_in_tracking_space_coordinates = scm::math::inverse(current_probe_rotation_mat) *
+                                                               (model_rotation_node->get_transform());  
+
+              initial_translation_in_tracking_space_coordinates = scm::math::inverse(current_probe_translation_mat)
+                                                                  * (model_translation_node->get_transform());
            }
            else{
-              initial_rotation_in_tracking_space_coordinates = scm::math::inverse(current_probe_rotation_mat)*(plane_rotation_node->get_transform());  
-              initial_translation_in_tracking_space_coordinates = scm::math::inverse(current_probe_translation_mat)*(plane_translation_node->get_transform());
+              initial_rotation_in_tracking_space_coordinates = scm::math::inverse(current_probe_rotation_mat)
+                                                               * (model_rotation_node->get_transform())
+                                                               * (plane_rotation_node->get_transform()); 
+      
+              initial_translation_in_tracking_space_coordinates = scm::math::inverse(current_probe_translation_mat)
+                                                                  * (model_translation_node->get_transform())
+                                                                  * (model_rotation_node->get_transform())
+                                                                  * (plane_translation_node->get_transform());
            }       
 
           }
-          else{
-            auto rotation_mat = current_probe_rotation_mat*initial_rotation_in_tracking_space_coordinates;
-            auto translation_mat = current_probe_translation_mat*initial_translation_in_tracking_space_coordinates;
+          else{//user triggers movement; transformations are apllied to plod and trimesh geometry
+
             if(snap_plane_to_model){
+                auto rotation_mat = current_probe_rotation_mat * initial_rotation_in_tracking_space_coordinates;
+                auto translation_mat = current_probe_translation_mat*initial_translation_in_tracking_space_coordinates;
                 model_translation_node->set_transform(translation_mat);
                 model_rotation_node->set_transform(rotation_mat);
 
             }else{
-
+                auto rotation_mat = scm::math::inverse(model_rotation_node->get_transform())
+                                    * current_probe_rotation_mat
+                                    * initial_rotation_in_tracking_space_coordinates;
+                auto translation_mat =   scm::math::inverse(model_rotation_node->get_transform())
+                                       * scm::math::inverse(model_translation_node->get_transform())
+                                       * current_probe_translation_mat
+                                       * initial_translation_in_tracking_space_coordinates;
                 plane_translation_node->set_transform(translation_mat);
                 plane_rotation_node->set_transform(rotation_mat);
             }
           }
 
           if(reset_scene_position){
-            //scene_root_node->set_transform(gua::math::mat4::identity());
-            if(manipulate_scene_geometry){
+            if(snap_plane_to_model){
               model_translation_node->set_transform(initial_scene_translation_mat);
               model_rotation_node->set_transform(initial_scene_rotation_mat);
               scale_scene(1.0, graph);
               zoom_factor = 1.0;
             }
             else{
-              plane_translation_node->set_transform(initial_scene_translation_mat);
-              //plane_rot_offset_node->set_transform(initial_scene_rotation_mat);
-              plane_rotation_node->set_transform(gua::math::mat4::identity());
+              plane_translation_node->set_transform(scm::math::inverse(model_translation_node->get_transform())
+                                                    * initial_scene_translation_mat);
+              plane_rotation_node->set_transform(scm::math::inverse(model_rotation_node->get_transform()) 
+                                                 * initial_scene_rotation_mat);
             }
             reset_scene_position = false;
           } 
@@ -743,11 +780,11 @@ int main(int argc, char** argv) {
         }
         #endif
 
-    		renderer.queue_draw({&graph});
-    	}
-	});
+        renderer.queue_draw({&graph});
+      }
+  });
 
-	loop.start();
+  loop.start();
 
-	return 0;
+  return 0;
 }
