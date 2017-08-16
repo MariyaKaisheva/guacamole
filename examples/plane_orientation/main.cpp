@@ -32,6 +32,8 @@
 #include <gua/math/BoundingBox.hpp>
 
 #include <gua/node/PLodNode.hpp>
+#include <gua/node/TriMeshNode.hpp>
+#include <gua/node/Node.hpp>
 #include <gua/renderer/LodLoader.hpp>
 #include <gua/renderer/PBSMaterialFactory.hpp>
 #include <gua/renderer/PLodPass.hpp>
@@ -68,12 +70,24 @@ double x_offset_scene_track_target = 0.0;
 double y_offset_scene_track_target = 0.0;
 double z_offset_scene_track_target = 0.0;
 
-std::set<std::string> model_filenames;
+std::vector<std::string> model_filenames; 
+uint8_t model_idex = 0;
+bool available_preview_trimesh = false;
+
+int32_t depth = 4;
+bool write_obj_file = true;
+bool use_nurbs = true;
+bool apply_alpha_shapes = true;
+uint32_t max_number_line_loops = 20;
+bool is_line_preview_node_active = false;
+std::string trimesh_preview_filename = "";
+std::string data_source = "/home/vajo3185/Programming/guacamole/examples/plane_orientation/";
 
 float error_threshold = 3.7f; //for point cloud models
 float radius_scale = 0.7f;  //for point cloud models
 
 std::string plod_geometry_parent = "/model_translation/model_rotation/model_scaling/geometry_root";
+std::string trimesh_preview_geometry_parent = "/model_translation/model_rotation/model_scaling/preview_trimesh_root";
 
 float test_sphere_radius = 0.25f;
 auto plod_pass = std::make_shared<gua::PLodPassDescription>();
@@ -112,7 +126,16 @@ void mouse_button(gua::utils::Trackball& trackball,
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-void toggle_visibility(gua::SceneGraph const& graph){
+void remove_old_preview(gua::SceneGraph & graph){
+  if(is_line_preview_node_active) {
+    //remove old line preview
+    graph.remove_node(trimesh_preview_geometry_parent + "/line_preview");
+    is_line_preview_node_active = false;
+  }
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+void toggle_visibility(gua::SceneGraph & graph){
     auto all_geometry_nodes = graph[plod_geometry_parent]->get_children();
     uint8_t num_models = all_geometry_nodes.size();
     for(uint8_t node_index  = 0; node_index < num_models; ++node_index){
@@ -123,14 +146,39 @@ void toggle_visibility(gua::SceneGraph const& graph){
           //make next model visible
           if(node_index == num_models - 1){
             all_geometry_nodes[0]->get_tags().remove_tag("invisible");
+            model_idex = 0;
           }else{
             all_geometry_nodes[node_index + 1]->get_tags().remove_tag("invisible");
+            model_idex = node_index + 1; 
           }
+
+          remove_old_preview(graph);
+
         break;
       }
   }
 }
 
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+std::string extract_name(std::string full_name){
+    std::string model_filename_without_path = full_name.substr(full_name.find_last_of("/\\") + 1); 
+    std::string model_filename_without_path_and_extension = model_filename_without_path.substr(0, model_filename_without_path.size() - 4);
+
+    return model_filename_without_path_and_extension;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+float get_rotation_angle(scm::math::mat4f rot_mat){
+   scm::math::quat<float> output_quat;
+   output_quat = scm::math::quat<float>::from_matrix(rot_mat);
+   float angle; 
+   scm::math::vec3f axis; 
+   output_quat.retrieve_axis_angle(angle, axis);
+
+    return angle;
+}
+
+//TODO clean duplicat code!
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void write_rot_mat (gua::SceneGraph const& graph){
   std::string path_to_plane_rot_node = "/model_translation/model_rotation/model_scaling/plane_root/plane_translation/plane_rotation";
@@ -170,6 +218,30 @@ void write_rot_mat (gua::SceneGraph const& graph){
   else{
     std::cout << "Cannot open output file to write to! \n";
   }
+}
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+bool call_LA_preview(gua::SceneGraph const& graph){
+
+  std::string path_to_plane_rot_node = "/model_translation/model_rotation/model_scaling/plane_root/plane_translation/plane_rotation";
+  scm::math::mat4f rot_mat =  scm::math::mat4f(gua::math::get_rotation(graph[path_to_plane_rot_node]->get_transform()));
+  std::string bvh_filename = model_filenames[model_idex];
+  std::string model_filename_without_path_and_extension = extract_name(bvh_filename);
+  auto angle = get_rotation_angle(rot_mat);  
+  std::string output_filename_without_extension  =  model_filename_without_path_and_extension
+                                                     + "_d" + std::to_string(depth)
+                                                     + "_angle_" + std::to_string(angle);
+
+  trimesh_preview_filename =  data_source + output_filename_without_extension + ".obj";
+  npr::core::generate_line_art(rot_mat,
+                               bvh_filename, 
+                               depth,
+                               write_obj_file, 
+                               use_nurbs, 
+                               apply_alpha_shapes,
+                               output_filename_without_extension,
+                               max_number_line_loops);
+  std::cout << "DONE CALLING THE LAMURE LIB FUNCTION\n";
+  return true;
 }
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void scale_scene (double zoom_factor, gua::SceneGraph& graph){
@@ -258,9 +330,14 @@ void key_press(gua::PipelineDescription& pipe,
         freeze_cut_update = !freeze_cut_update;
       break;
 
-    case 'p':
+    case 'i':
       show_lense =! show_lense;
       break;
+
+    case 'p':
+      available_preview_trimesh = call_LA_preview(graph);
+      break;
+
 
     //write rotation matrix out
     case 'w': 
@@ -319,35 +396,15 @@ void add_models_to_graph(std::vector<std::string> const& model_files,
                          std::vector<scm::math::mat4f> const& model_transformations){
   gua::LodLoader lod_loader;
 
-  uint64_t model_idx_counter = 0;
-
   for (auto const& model : model_files) {
 
     auto plod_node = lod_loader.load_lod_pointcloud(model);
-
-    /*if(model_idx_counter < 1){
-      std::cout << "CALLING THE LAMURE LIB FUNCTION\n";
-      float angle = 45.0f;
-      float axis_x  = 0.5;
-      float axis_y  = 0.0;
-      float axis_z  = 0.5;
-      auto rot_mat = scm::math::make_rotation(angle, axis_x, axis_y, axis_z);
-      npr::core::generate_line_art(rot_mat, model, 5, true, true, true, 36);
-      std::cout << "DONE CALLING THE LAMURE LIB FUNCTION\n";    
-    }*/
-
-
-    std::string model_filename_without_path = model.substr(model.find_last_of("/\\") + 1); 
-    std::string model_filename_without_path_and_extension = model_filename_without_path.substr(0, model_filename_without_path.size() - 4);
+    std::string model_filename_without_path_and_extension = extract_name(model);
     plod_node->set_name(model_filename_without_path_and_extension);
     graph.add_node(plod_geometry_parent, plod_node); 
     scene_bounding_boxes.push_back(plod_node->get_bounding_box()); 
     plod_node->set_draw_bounding_box(true);
-    model_filenames.insert(model);
-
-
-
-    ++model_idx_counter;
+    model_filenames.push_back(model);
   }
 
     auto all_geometry_nodes = graph[plod_geometry_parent]->get_children();
@@ -388,6 +445,7 @@ int main(int argc, char** argv) {
   auto model_rotation_node = graph.add_node<gua::node::TransformNode>(model_translation_node, "model_rotation");
   auto model_scaling_node = graph.add_node<gua::node::TransformNode>(model_rotation_node, "model_scaling");
   auto geometry_root = graph.add_node<gua::node::TransformNode>(model_scaling_node, "geometry_root");
+  auto preview_trimesh_root = graph.add_node<gua::node::TransformNode>(model_scaling_node, "preview_trimesh_root");
   auto plane_root = graph.add_node<gua::node::TransformNode>(model_scaling_node, "plane_root");
 
   //light source 
@@ -398,7 +456,6 @@ int main(int argc, char** argv) {
 
   //slicing plane geometry
   auto plane_translation_node = graph.add_node<gua::node::TransformNode>(plane_root, "plane_translation");
-  //auto plane_rot_offset_node = graph.add_node<gua::node::TransformNode>("/plane_translation", "plane_rotation_offset");
   auto plane_rotation_node = graph.add_node<gua::node::TransformNode>(plane_translation_node, "plane_rotation");
   auto plane_scaling_node = graph.add_node<gua::node::TransformNode>(plane_rotation_node, "plane_scaling");
   auto plane_geometry_root = graph.add_node<gua::node::TransformNode>(plane_scaling_node, "plane_geometry_root");
@@ -428,7 +485,8 @@ int main(int argc, char** argv) {
                 "/home/vajo3185/Programming/guacamole/examples/plane_orientation/data/objects/plane.obj", 
                 plane_material,
                 gua::TriMeshLoader::NORMALIZE_POSITION |
-                gua::TriMeshLoader::NORMALIZE_SCALE )); 
+                gua::TriMeshLoader::NORMALIZE_SCALE ));
+
 
   //define screen resolution
   gua::math::vec2ui resolution;
@@ -554,11 +612,12 @@ int main(int argc, char** argv) {
   model_rotation_node->set_transform(initial_scene_rotation_mat);
   model_scaling_node->set_transform(initial_scene_scaling_mat);
 
-  //plane_translation_node->set_transform(initial_scene_translation_mat);
-  //plane_rot_offset_node->set_transform(initial_scene_rotation_mat);
-  //plane_scaling_node->set_transform(initial_scene_scaling_mat);
-
   graph.add_node(plane_geometry_root, plane_geometry);
+  /*
+  std::shared_ptr<gua::node::TriMeshNode> line_preview_trimesh_node = nullptr; //trimesh node for line preview
+  line_preview_trimesh_node->get_tags().add_tag("invisible");
+  graph.add_node(geometry_root, line_preview_trimesh_node);
+  */
  
   //add pipeline with rendering passes
   auto pipe = std::make_shared<gua::PipelineDescription>();
@@ -625,7 +684,7 @@ int main(int argc, char** argv) {
       scm::inp::tracker::target_container targets;
       targets.insert(scm::inp::tracker::target_container::value_type(5, scm::inp::target(5)));
       targets.insert(scm::inp::tracker::target_container::value_type(22, scm::inp::target(22)));
-      targets.insert(scm::inp::tracker::target_container::value_type(17, scm::inp::target(17)));
+      //targets.insert(scm::inp::tracker::target_container::value_type(17, scm::inp::target(17)));
 
       scm::inp::art_dtrack* dtrack(new scm::inp::art_dtrack(5000));
       if (!dtrack->initialize()) {
@@ -658,20 +717,42 @@ int main(int argc, char** argv) {
   auto initial_translation_in_tracking_space_coordinates = gua::math::mat4::identity();
   auto initial_rotation_in_tracking_space_coordinates = gua::math::mat4::identity();
   gua::LodLoader lod_loader;
-
   //application loop //////////////////////////////
   gua::events::MainLoop loop;
   double tick_time = 1.0/500.0;
   gua::events::Ticker ticker(loop, tick_time);
   ticker.on_tick.connect([&](){
 
+    //worker thread creation
+
     //terminate application
     if (window->should_close() || close_window) {
       renderer.stop();
         window->close();
+
+        //signal worker thread to shut itself down
+
         loop.stop();
       }
       else {
+
+
+        if(available_preview_trimesh) {
+          
+          remove_old_preview(graph);                            
+          auto line_preview_trimesh_node(trimesh_loader.create_geometry_from_file(
+              "line_preview",
+              trimesh_preview_filename, 
+              line_rendering_material_w_back_faces,
+              gua::TriMeshLoader::NORMALIZE_POSITION |
+              gua::TriMeshLoader::NORMALIZE_SCALE ) ) ;
+
+          graph.add_node(preview_trimesh_root, line_preview_trimesh_node);
+          is_line_preview_node_active = true;
+
+          //line_preview_trimesh_node->get_tags().remove_tag("invisible");
+          available_preview_trimesh = false;
+        }
 
         #if(USE_SIDE_BY_SIDE && TRACKING_ENABLED)
           #if 1
@@ -785,6 +866,8 @@ int main(int argc, char** argv) {
   });
 
   loop.start();
+
+  //worker thread.join()
 
   return 0;
 }
