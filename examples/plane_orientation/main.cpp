@@ -46,6 +46,7 @@
 #include <boost/program_options.hpp>
 
 #include <fstream>
+#include <stdio.h> //remove
 
 #define USE_SIDE_BY_SIDE 1
 #define USE_ANAGLYPH 0
@@ -74,6 +75,7 @@ std::vector<std::string> model_filenames;
 std::vector<scm::math::vec4f> model_translation_sacle_vec; 
 uint8_t model_index = 0;
 bool available_preview_trimesh = false;
+std::set<std::string> processed_preview_files; 
 
 int32_t depth = 4;
 bool write_obj_file = true;
@@ -242,6 +244,7 @@ bool call_LA_preview(gua::SceneGraph const& graph){
                                output_filename_without_extension,
                                max_number_line_loops);
   std::cout << "DONE CALLING THE LAMURE LIB FUNCTION\n";
+  processed_preview_files.insert(trimesh_preview_filename);
   return true;
 }
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -729,6 +732,16 @@ int main(int argc, char** argv) {
         window->close();
 
         //signal worker thread to shut itself down
+
+        //remove all preview files created during application run
+        for(auto const& current_file_to_delete : processed_preview_files){
+          const char *cstr_filename = current_file_to_delete.c_str();
+          auto file_removed = remove(cstr_filename);
+          if(file_removed != 0){
+            std::cout << "File: " << current_file_to_delete << " wasn't removed properly! \n";
+          }
+        }
+          std::cout << "Removal of preview files has finished. \n";
 
         loop.stop();
       }
