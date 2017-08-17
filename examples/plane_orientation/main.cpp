@@ -70,8 +70,9 @@ double x_offset_scene_track_target = 0.0;
 double y_offset_scene_track_target = 0.0;
 double z_offset_scene_track_target = 0.0;
 
-std::vector<std::string> model_filenames; 
-uint8_t model_idex = 0;
+std::vector<std::string> model_filenames;
+std::vector<scm::math::vec4f> model_translation_sacle_vec; 
+uint8_t model_index = 0;
 bool available_preview_trimesh = false;
 
 int32_t depth = 4;
@@ -146,10 +147,10 @@ void toggle_visibility(gua::SceneGraph & graph){
           //make next model visible
           if(node_index == num_models - 1){
             all_geometry_nodes[0]->get_tags().remove_tag("invisible");
-            model_idex = 0;
+            model_index = 0;
           }else{
             all_geometry_nodes[node_index + 1]->get_tags().remove_tag("invisible");
-            model_idex = node_index + 1; 
+            model_index = node_index + 1; 
           }
 
           remove_old_preview(graph);
@@ -224,7 +225,7 @@ bool call_LA_preview(gua::SceneGraph const& graph){
 
   std::string path_to_plane_rot_node = "/model_translation/model_rotation/model_scaling/plane_root/plane_translation/plane_rotation";
   scm::math::mat4f rot_mat =  scm::math::mat4f(gua::math::get_rotation(graph[path_to_plane_rot_node]->get_transform()));
-  std::string bvh_filename = model_filenames[model_idex];
+  std::string bvh_filename = model_filenames[model_index];
   std::string model_filename_without_path_and_extension = extract_name(bvh_filename);
   auto angle = get_rotation_angle(rot_mat);  
   std::string output_filename_without_extension  =  model_filename_without_path_and_extension
@@ -278,14 +279,9 @@ void key_press(gua::PipelineDescription& pipe,
   }
 
   //toggle what geometry is manipulated by the tracked cubic probe
-  //switches between scene geometry and slicing plane
+  //model & slicing plane moving together or only slicing plane
   if(65 == scancode && action == 1){ //'Spacebar'
-    manipulate_scene_geometry = !manipulate_scene_geometry;
-  }
-
-  //toggle linked position tracking (model & slicing plane moving together or not)
-  if(39 == scancode && action == 1){ //'s'
-    snap_plane_to_model = !snap_plane_to_model;
+     snap_plane_to_model = !snap_plane_to_model;
   }
 
   if (action == 0) return;
@@ -422,6 +418,8 @@ void add_models_to_graph(std::vector<std::string> const& model_files,
       node->scale(scaling_factor);
       node->set_draw_bounding_box(true);
       node->get_tags().add_tag("invisible");
+      scm::math::vec4f transformation_components(scaling_factor, -scene_bbox.center().x, -scene_bbox.center().y, -scene_bbox.center().z);
+      model_translation_sacle_vec.push_back(transformation_components);
 
     }
 
@@ -743,14 +741,15 @@ int main(int argc, char** argv) {
           auto line_preview_trimesh_node(trimesh_loader.create_geometry_from_file(
               "line_preview",
               trimesh_preview_filename, 
-              line_rendering_material_w_back_faces,
-              gua::TriMeshLoader::NORMALIZE_POSITION |
-              gua::TriMeshLoader::NORMALIZE_SCALE ) ) ;
+              line_rendering_material_w_back_faces) ) ;
 
           graph.add_node(preview_trimesh_root, line_preview_trimesh_node);
+          auto current_model_transformation_components = model_translation_sacle_vec[model_index];
+          line_preview_trimesh_node->translate(current_model_transformation_components[1], 
+                                          current_model_transformation_components[2],
+                                          current_model_transformation_components[3]);
+          line_preview_trimesh_node->scale(current_model_transformation_components[0]);
           is_line_preview_node_active = true;
-
-          //line_preview_trimesh_node->get_tags().remove_tag("invisible");
           available_preview_trimesh = false;
         }
 
