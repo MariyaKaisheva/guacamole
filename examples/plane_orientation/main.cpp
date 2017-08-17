@@ -47,6 +47,8 @@
 
 #include <fstream>
 #include <stdio.h> //remove
+#include <thread>  // std::thread
+#include <atomic> 
 
 #define USE_SIDE_BY_SIDE 1
 #define USE_ANAGLYPH 0
@@ -74,15 +76,23 @@ double z_offset_scene_track_target = 0.0;
 std::vector<std::string> model_filenames;
 std::vector<scm::math::vec4f> model_translation_sacle_vec; 
 uint8_t model_index = 0;
-bool available_preview_trimesh = false;
+//bool available_preview_trimesh = false;
+//bool start_preview_processing = false;
 std::set<std::string> processed_preview_files; 
+
+std::atomic<bool>  render_loop_should_wait(false);
+std::atomic<bool>  render_loop_is_waiting(false);
+std::atomic<bool>  available_preview_trimesh(false);
+std::atomic<bool>  start_preview_processing(false);
+std::atomic<bool> is_line_preview_node_active(false);
+
+
 
 int32_t depth = 4;
 bool write_obj_file = true;
 bool use_nurbs = true;
 bool apply_alpha_shapes = true;
 uint32_t max_number_line_loops = 20;
-bool is_line_preview_node_active = false;
 std::string trimesh_preview_filename = "";
 std::string data_source = "/home/vajo3185/Programming/guacamole/examples/plane_orientation/";
 
@@ -130,10 +140,10 @@ void mouse_button(gua::utils::Trackball& trackball,
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void remove_old_preview(gua::SceneGraph & graph){
-  if(is_line_preview_node_active) {
+  if(is_line_preview_node_active.load()) {
     //remove old line preview
     graph.remove_node(trimesh_preview_geometry_parent + "/line_preview");
-    is_line_preview_node_active = false;
+    is_line_preview_node_active.store(false);
   }
 }
 
@@ -334,7 +344,8 @@ void key_press(gua::PipelineDescription& pipe,
       break;
 
     case 'p':
-      available_preview_trimesh = call_LA_preview(graph);
+      start_preview_processing.store(true);
+      //available_preview_trimesh = call_LA_preview(graph);
       break;
 
 
@@ -433,6 +444,58 @@ void add_models_to_graph(std::vector<std::string> const& model_files,
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//globale variable used also in main 
+gua::TriMeshLoader   trimesh_loader; 
+
+
+
+void process_plod_model(gua::SceneGraph & graph){
+
+  while(true){
+
+    auto line_rendering_material_w_back_faces(gua::MaterialShaderDatabase::instance()
+                                                        ->lookup("gua_default_material")
+                                                        ->make_new_material());
+
+    line_rendering_material_w_back_faces->set_show_back_faces(true);
+    line_rendering_material_w_back_faces->set_render_wireframe(true);
+    line_rendering_material_w_back_faces->set_uniform("Emissivity", 1.0f);
+    line_rendering_material_w_back_faces->set_uniform("Color", gua::math::vec4f(1.0f, 0.0f, 0.0f, 1.0f) );
+
+
+    if(1 == start_preview_processing.load()){
+      available_preview_trimesh.store(call_LA_preview(graph));
+      start_preview_processing.store(false);
+      render_loop_should_wait.store(true);
+    }
+
+
+    if(available_preview_trimesh.load() && render_loop_is_waiting.load()) {
+
+        remove_old_preview(graph);
+        auto line_preview_trimesh_node(trimesh_loader.create_geometry_from_file("line_preview",
+                                                                                trimesh_preview_filename, 
+                                                                                line_rendering_material_w_back_faces) ) ;
+
+        graph.add_node(trimesh_preview_geometry_parent, line_preview_trimesh_node);
+        auto current_model_transformation_components = model_translation_sacle_vec[model_index];
+        line_preview_trimesh_node->translate(current_model_transformation_components[1], 
+                                        current_model_transformation_components[2],
+                                        current_model_transformation_components[3]);
+        line_preview_trimesh_node->scale(current_model_transformation_components[0]);
+
+        is_line_preview_node_active.store(true);
+        available_preview_trimesh.store(false);
+        render_loop_should_wait.store(false);
+    }
+
+  
+   // std::cout << "Hallo, Thread da!";
+  }
+
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 int main(int argc, char** argv) {
@@ -461,16 +524,16 @@ int main(int argc, char** argv) {
   auto plane_scaling_node = graph.add_node<gua::node::TransformNode>(plane_rotation_node, "plane_scaling");
   auto plane_geometry_root = graph.add_node<gua::node::TransformNode>(plane_scaling_node, "plane_geometry_root");
 
-  gua::TriMeshLoader   trimesh_loader;
+  //gua::TriMeshLoader   trimesh_loader;
 
-  auto line_rendering_material_w_back_faces(gua::MaterialShaderDatabase::instance()
+  /*auto line_rendering_material_w_back_faces(gua::MaterialShaderDatabase::instance()
                                 ->lookup("gua_default_material")
                                 ->make_new_material());
 
   line_rendering_material_w_back_faces->set_show_back_faces(true);
   line_rendering_material_w_back_faces->set_render_wireframe(true);
   line_rendering_material_w_back_faces->set_uniform("Emissivity", 1.0f);
-  line_rendering_material_w_back_faces->set_uniform("Color", gua::math::vec4f(1.0f, 0.0f, 0.0f, 1.0f) );
+  line_rendering_material_w_back_faces->set_uniform("Color", gua::math::vec4f(1.0f, 0.0f, 0.0f, 1.0f) );*/
 
 
   auto plane_material(gua::MaterialShaderDatabase::instance()
@@ -718,13 +781,16 @@ int main(int argc, char** argv) {
   auto initial_translation_in_tracking_space_coordinates = gua::math::mat4::identity();
   auto initial_rotation_in_tracking_space_coordinates = gua::math::mat4::identity();
   gua::LodLoader lod_loader;
+
+  //worker thread creation
+    std::thread preview_processing_worker(process_plod_model, std::ref(graph) );
+
+
   //application loop //////////////////////////////
   gua::events::MainLoop loop;
   double tick_time = 1.0/500.0;
   gua::events::Ticker ticker(loop, tick_time);
   ticker.on_tick.connect([&](){
-
-    //worker thread creation
 
     //terminate application
     if (window->should_close() || close_window) {
@@ -748,9 +814,9 @@ int main(int argc, char** argv) {
       else {
 
 
-        if(available_preview_trimesh) {
+        /*if(available_preview_trimesh) {
           
-          remove_old_preview(graph);                            
+          remove_old_preview(graph);
           auto line_preview_trimesh_node(trimesh_loader.create_geometry_from_file(
               "line_preview",
               trimesh_preview_filename, 
@@ -764,9 +830,9 @@ int main(int argc, char** argv) {
           line_preview_trimesh_node->scale(current_model_transformation_components[0]);
           is_line_preview_node_active = true;
           available_preview_trimesh = false;
-        }
-
-        #if(USE_SIDE_BY_SIDE && TRACKING_ENABLED)
+        }*/
+        if(0 == render_loop_should_wait.load()){
+          #if(USE_SIDE_BY_SIDE && TRACKING_ENABLED)
           #if 1
             camera->set_transform(current_cam_tracking_matrix);
           #endif 
@@ -874,12 +940,26 @@ int main(int argc, char** argv) {
         #endif
 
         renderer.queue_draw({&graph});
+
+        }else{
+          //busy waiting for processing loop to operate on graph
+          render_loop_is_waiting.store(true);
+          while(true){
+            if(0 == render_loop_should_wait.load()){
+              render_loop_is_waiting.store(false);
+              break;
+            }
+          }
+        }
+
+        
       }
   });
 
   loop.start();
 
-  //worker thread.join()
+  //synchronize threads
+  preview_processing_worker.join();
 
   return 0;
 }
